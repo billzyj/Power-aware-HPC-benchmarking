@@ -244,7 +244,7 @@ def plot_stacked_bars_by_batch_size(df, output_dir):
                     bbox_inches='tight', dpi=300)
         plt.close()
 
-def plot_consolidated_stacked_bars(df, output_dir):
+def plot_consolidated_stacked_bars(df, output_dir, ylabel):
     """Create a single stacked bar graph with all batch sizes grouped together"""
     plt.figure(figsize=(20, 10))
     
@@ -388,7 +388,7 @@ def plot_consolidated_stacked_bars(df, output_dir):
     # Customize the plot
     plt.title('Energy Consumption Breakdown by Component and Batch Size', fontsize=14)
     plt.xlabel('Framework-Model Combinations', fontsize=12)
-    plt.ylabel('Energy per Second (Joules)', fontsize=12)
+    plt.ylabel(ylabel, fontsize=12)
     
     # Set x-ticks at the center of each group
     group_centers = []
@@ -424,31 +424,93 @@ def plot_consolidated_stacked_bars(df, output_dir):
     plt.close()
 
 def main():
-    # Create output directory
-    output_dir = Path('data_analysis/output')
-    output_dir.mkdir(exist_ok=True)
+    # Define metrics to analyze
+    metrics_config = {
+        'per_second': {
+            'folder': 'energy_per_second',
+            'metrics': {
+                'gpu': 'gpu_energy_per_second',
+                'cpu': 'cpu_energy_per_second',
+                'dram': 'dram_energy_per_second',
+                'total': 'total_energy_per_second'
+            },
+            'ylabel': 'Energy per Second (Joules/s)'
+        },
+        'per_token': {
+            'folder': 'energy_per_token',
+            'metrics': {
+                'gpu': 'gpu_energy_per_token',
+                'cpu': 'cpu_energy_per_token',
+                'dram': 'dram_energy_per_token',
+                'total': 'total_energy_per_token'
+            },
+            'ylabel': 'Energy per Token (Joules/token)'
+        },
+        'per_response': {
+            'folder': 'energy_per_response',
+            'metrics': {
+                'gpu': 'gpu_energy_per_response',
+                'cpu': 'cpu_energy_per_response',
+                'dram': 'dram_energy_per_response',
+                'total': 'total_energy_per_response'
+            },
+            'ylabel': 'Energy per Response (Joules/response)'
+        },
+        'total': {
+            'folder': 'total_energy',
+            'metrics': {
+                'gpu': 'gpu_energy',
+                'cpu': 'cpu_energy',
+                'dram': 'dram_energy',
+                'total': 'total_energy'
+            },
+            'ylabel': 'Total Energy (Joules)'
+        }
+    }
     
-    # Load data
+    # Create base output directory
+    base_output_dir = Path('data_analysis/output')
+    base_output_dir.mkdir(exist_ok=True)
+    
+    # Load data once
     df = load_data('data_analysis/input')
     
-    # Generate plots
-    metrics = ['gpu_energy_per_second', 'cpu_energy_per_second', 
-               'dram_energy_per_second', 'total_energy_per_second']
-    
-    for metric in metrics:
-        plot_energy_comparison(df, metric, 
-                             f'Energy Consumption Comparison ({metric})',
-                             output_dir)
-        plot_energy_heatmap(df, metric, output_dir)
-        plot_comprehensive_heatmap(df, metric, output_dir)
-    
-    components = ['gpu', 'cpu', 'dram']
-    for component in components:
-        plot_batch_size_scaling(df, component, output_dir)
-    
-    plot_component_breakdown(df, output_dir)
-    plot_stacked_bars_by_batch_size(df, output_dir)
-    plot_consolidated_stacked_bars(df, output_dir)
+    # Process each metric type
+    for metric_type, config in metrics_config.items():
+        # Create metric-specific output directory
+        output_dir = base_output_dir / config['folder']
+        output_dir.mkdir(exist_ok=True)
+        
+        # Generate plots for each metric
+        for metric_name, metric_key in config['metrics'].items():
+            # Energy comparison plots
+            plot_energy_comparison(df, metric_key, 
+                                f'Energy Consumption Comparison ({metric_type})',
+                                output_dir)
+            
+            # Energy heatmaps
+            plot_energy_heatmap(df, metric_key, output_dir)
+            
+            # Comprehensive heatmaps
+            plot_comprehensive_heatmap(df, metric_key, output_dir)
+            
+            # Batch size scaling plots (only for component metrics)
+            if metric_name != 'total':
+                plot_batch_size_scaling(df, metric_name, output_dir)
+        
+        # Component breakdown plot
+        plot_component_breakdown(df.copy(), output_dir)
+        
+        # Create consolidated stacked bar plot with custom y-label
+        # Create a copy of the DataFrame for this metric type
+        metric_df = df.copy()
+        
+        # Rename columns to match the expected names in the plotting function
+        for component, metric_key in config['metrics'].items():
+            if component != 'total':
+                metric_df[f'{component}_energy_per_second'] = metric_df[metric_key]
+        
+        plot_consolidated_stacked_bars(metric_df, output_dir, ylabel=config['ylabel'])
 
 if __name__ == "__main__":
     main() 
