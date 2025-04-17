@@ -1,5 +1,6 @@
 # Created by venv; see https://docs.python.org/3/library/venv.html
-*./env
-*./venv
-*./bin
-*./data_analysis/output
+/env
+/.venv
+/bin
+data_analysis/output
+*.DS_Store
