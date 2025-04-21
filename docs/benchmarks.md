@@ -7,6 +7,26 @@ This project integrates power profiling with standard HPC benchmarks to measure 
 1. OSU Micro-benchmarks - For measuring communication performance
 2. HPL (High Performance Linpack) - For measuring system performance
 
+## Directory Structure
+
+```
+results/                # Output directory for all benchmark results
+├── raw/               # Raw benchmark outputs and power monitoring data
+│   ├── power_data_*.json     # Power monitoring data files
+│   └── benchmark_*.txt       # Benchmark result files
+├── processed/         # Processed results and analysis
+│   ├── power/        # Processed power data
+│   ├── benchmarks/   # Processed benchmark results
+│   └── reports/      # Analysis reports
+└── reports/          # Generated visualizations and final reports
+```
+
+## Running Benchmarks
+
+By default, all benchmark results are stored in the `results/raw` directory. Each run creates:
+1. A power monitoring data file (`power_data_<timestamp>.json`)
+2. A benchmark results file (`<benchmark>_<timestamp>.txt`)
+
 ## OSU Micro-benchmarks
 
 ### Overview
