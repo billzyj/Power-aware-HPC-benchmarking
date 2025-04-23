@@ -1,73 +1,88 @@
 #!/usr/bin/env python3
 
+import os
 import time
 import threading
+import logging
 import subprocess
 import json
-import logging
+from typing import Optional, Dict, Any, List
+from .base import BasePowerMonitor, PowerReading
 
-class GPUMonitor:
-    def __init__(self, sampling_interval=0.1):
-        self.sampling_interval = sampling_interval
-        self.running = False
-        self.thread = None
-        self.power_data = []
-        self.logger = logging.getLogger(__name__)
+class GPUMonitor(BasePowerMonitor):
+    def __init__(self, sampling_interval: float = 0.1, max_retries: int = 3, gpu_ids: List[int] = None):
+        super().__init__(sampling_interval, max_retries)
+        self.gpu_ids = gpu_ids or self._get_available_gpus()
+        self.logger.info(f"Initialized GPU monitor for GPUs: {self.gpu_ids}")
         
-        # Check if nvidia-smi is available
+    def _get_available_gpus(self) -> List[int]:
+        """Get list of available NVIDIA GPUs"""
         try:
-            subprocess.run(['nvidia-smi', '--query-gpu=gpu_name', '--format=csv,noheader'], 
-                          capture_output=True, text=True, check=True)
-            self.nvidia_smi_available = True
-        except (subprocess.SubprocessError, FileNotFoundError):
-            self.nvidia_smi_available = False
-            self.logger.warning("nvidia-smi not available. GPU monitoring will be disabled.")
-    
-    def _read_gpu_power(self):
-        """Read GPU power consumption using nvidia-smi"""
-        if not self.nvidia_smi_available:
-            return None
-            
-        try:
-            cmd = ['nvidia-smi', '--query-gpu=power.draw', '--format=csv,noheader,nounits']
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            power = float(result.stdout.strip())
-            return power
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader"],
+                capture_output=True, text=True, check=True
+            )
+            return [int(line.strip()) for line in result.stdout.splitlines()]
         except (subprocess.SubprocessError, ValueError) as e:
-            self.logger.warning(f"Error reading GPU power: {e}")
+            self.logger.error(f"Failed to get available GPUs: {e}")
+            return []
+    
+    def _read_power(self) -> Optional[float]:
+        """Read GPU power consumption from nvidia-smi"""
+        if not self.gpu_ids:
+            return None
+            
+        try:
+            # Query power usage for all GPUs
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=index,power.draw", "--format=csv,noheader"],
+                capture_output=True, text=True, check=True
+            )
+            
+            total_power = 0.0
+            for line in result.stdout.splitlines():
+                gpu_id, power_str = line.strip().split(", ")
+                gpu_id = int(gpu_id)
+                if gpu_id in self.gpu_ids:
+                    # Power is returned in watts, but as a string with "W" suffix
+                    power = float(power_str.replace("W", ""))
+                    total_power += power
+            
+            return total_power if total_power > 0 else None
+            
+        except (subprocess.SubprocessError, ValueError) as e:
+            self.logger.error(f"Error reading GPU power: {e}")
             return None
     
-    def _monitor_loop(self):
-        """Monitor loop that collects power data at regular intervals"""
-        while self.running:
-            power = self._read_gpu_power()
-            if power is not None:
-                self.power_data.append(power)
-            time.sleep(self.sampling_interval)
-    
-    def start(self):
-        """Start the GPU power monitoring"""
-        if not self.nvidia_smi_available:
-            self.logger.warning("GPU monitoring not started: nvidia-smi not available")
-            return
-            
-        if not self.running:
-            self.running = True
-            self.thread = threading.Thread(target=self._monitor_loop)
-            self.thread.daemon = True
-            self.thread.start()
-            self.logger.info("GPU power monitoring started")
-    
-    def stop(self):
-        """Stop the GPU power monitoring and return the collected data"""
-        if self.running:
-            self.running = False
-            if self.thread:
-                self.thread.join(timeout=1.0)
-            self.logger.info("GPU power monitoring stopped")
+    def _get_metadata(self) -> Dict[str, Any]:
+        """Get metadata about the current reading"""
+        metadata = {
+            'monitor_type': 'nvidia_gpu',
+            'sampling_interval': self.sampling_interval,
+            'gpu_ids': self.gpu_ids
+        }
         
-        # Return empty list if no data was collected
-        if not self.power_data:
-            return []
+        # Add GPU-specific metadata
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=index,name,memory.total,driver_version", "--format=csv,noheader"],
+                capture_output=True, text=True, check=True
+            )
             
-        return self.power_data 
+            gpu_info = {}
+            for line in result.stdout.splitlines():
+                gpu_id, name, memory, driver = line.strip().split(", ")
+                gpu_id = int(gpu_id)
+                if gpu_id in self.gpu_ids:
+                    gpu_info[f"gpu_{gpu_id}"] = {
+                        "name": name,
+                        "memory": memory,
+                        "driver": driver
+                    }
+            
+            metadata["gpu_info"] = gpu_info
+            
+        except (subprocess.SubprocessError, ValueError) as e:
+            self.logger.error(f"Error getting GPU metadata: {e}")
+            
+        return metadata 

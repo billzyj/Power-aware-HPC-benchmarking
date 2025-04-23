@@ -1,72 +1,90 @@
 #!/usr/bin/env python3
 
+import os
 import time
 import threading
+import logging
+import subprocess
+import json
 import requests
-from requests.auth import HTTPBasicAuth
+from typing import Optional, Dict, Any
+from .base import BasePowerMonitor, PowerReading
 
-class SystemMonitor:
-    def __init__(self, sampling_interval=0.1, idrac_host=None, username=None, password=None):
-        self.sampling_interval = sampling_interval
-        self.monitoring = False
-        self.data = []
-        self.monitor_thread = None
+class SystemMonitor(BasePowerMonitor):
+    def __init__(self, sampling_interval: float = 0.1, max_retries: int = 3, 
+                 idrac_host: str = None, idrac_user: str = None, idrac_password: str = None):
+        super().__init__(sampling_interval, max_retries)
         
-        # iDRAC connection settings
-        self.idrac_host = idrac_host
-        self.username = username
-        self.password = password
+        # iDRAC credentials
+        self.idrac_host = idrac_host or os.environ.get('IDRAC_HOST')
+        self.idrac_user = idrac_user or os.environ.get('IDRAC_USER')
+        self.idrac_password = idrac_password or os.environ.get('IDRAC_PASSWORD')
         
-    def _read_system_power(self):
-        """Read system power consumption from iDRAC"""
-        if not all([self.idrac_host, self.username, self.password]):
-            print("Warning: iDRAC credentials not configured. Skipping system power monitoring.")
-            return 0.0
+        # Check if we have iDRAC credentials
+        self.idrac_available = all([self.idrac_host, self.idrac_user, self.idrac_password])
+        if not self.idrac_available:
+            self.logger.warning("iDRAC credentials not available. System power monitoring will be disabled.")
+            
+        # Try to get system information
+        self.system_info = self._get_system_info()
+    
+    def _get_system_info(self) -> Dict[str, Any]:
+        """Get system information using iDRAC"""
+        if not self.idrac_available:
+            return {}
             
         try:
-            # Construct Redfish API URL
-            url = f'https://{self.idrac_host}/redfish/v1/Chassis/System.Embedded.1/Power'
+            # Use racadm to get system information
+            cmd = ['racadm', 'get', 'System.ServerPwr.Statistics']
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             
-            # Make API request
-            response = requests.get(
-                url,
-                auth=HTTPBasicAuth(self.username, self.password),
-                verify=False  # Skip SSL verification for self-signed certificates
-            )
+            info = {}
+            for line in result.stdout.splitlines():
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    info[key.strip()] = value.strip()
+                    
+            return info
             
-            if response.status_code == 200:
-                data = response.json()
-                # Extract power consumption in watts
-                power = float(data['PowerConsumedWatts'])
-                return power
-            else:
-                print(f"Warning: iDRAC API request failed: {response.status_code}")
-                return 0.0
-                
-        except requests.RequestException as e:
-            print(f"Warning: Could not read system power data: {e}")
-            return 0.0
+        except (subprocess.SubprocessError, ValueError) as e:
+            self.logger.error(f"Error getting system information: {e}")
+            return {}
+    
+    def _read_power(self) -> Optional[float]:
+        """Read system power consumption from iDRAC"""
+        if not self.idrac_available:
+            return None
             
-    def _monitor_loop(self):
-        """Main monitoring loop"""
-        while self.monitoring:
-            power = self._read_system_power()
-            self.data.append(power)
-            time.sleep(self.sampling_interval)
+        try:
+            # Use racadm to get power reading
+            cmd = ['racadm', 'get', 'System.ServerPwr.PowerReading']
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             
-    def start(self):
-        """Start power monitoring"""
-        if not self.monitoring:
-            self.monitoring = True
-            self.data = []
-            self.monitor_thread = threading.Thread(target=self._monitor_loop)
-            self.monitor_thread.start()
+            for line in result.stdout.splitlines():
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    if 'PowerReading' in key:
+                        # Power is returned in watts
+                        return float(value.strip())
             
-    def stop(self):
-        """Stop power monitoring and return collected data"""
-        if self.monitoring:
-            self.monitoring = False
-            if self.monitor_thread:
-                self.monitor_thread.join()
-            return self.data
-        return [] 
+            return None
+            
+        except (subprocess.SubprocessError, ValueError) as e:
+            self.logger.error(f"Error reading system power: {e}")
+            return None
+    
+    def _get_metadata(self) -> Dict[str, Any]:
+        """Get metadata about the current reading"""
+        metadata = {
+            'monitor_type': 'idrac_system',
+            'sampling_interval': self.sampling_interval,
+            'system_info': self.system_info
+        }
+        
+        # Add hostname
+        try:
+            metadata['hostname'] = os.uname().nodename
+        except:
+            pass
+            
+        return metadata 
