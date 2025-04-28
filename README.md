@@ -128,6 +128,23 @@ print("GPU Statistics:", gpu_stats)
 print("System Statistics:", system_stats)
 ```
 
+### Running Benchmarks with Power Monitoring
+
+This project integrates power monitoring with standard HPC benchmarks to measure energy consumption during benchmark execution. To run benchmarks with power monitoring:
+
+1. Install the benchmarks following the instructions in [Benchmarks Documentation](docs/benchmarks.md)
+2. Use the provided scripts to run benchmarks with power monitoring:
+
+```bash
+# Run OSU latency test with power monitoring
+python scripts/run_benchmark.py --benchmark osu --test latency --duration 60
+
+# Run HPL with power monitoring
+python scripts/run_benchmark.py --benchmark hpl --size 1000 --duration 300
+```
+
+For detailed information on available benchmarks, configuration options, and interpreting results, please refer to the [Benchmarks Documentation](docs/benchmarks.md).
+
 ### Interactive Examples
 
 The project includes Jupyter notebooks with comprehensive examples, located in `docs/examples/`:
@@ -288,6 +305,7 @@ For more detailed documentation, see:
 
 - [Quick Start Guide](docs/quickstart.md)
 - [Power Profiling Guide](docs/power_profiling.md)
+- [Benchmarks Documentation](docs/benchmarks.md) - Running benchmarks with power monitoring
 - [Analysis Guide](docs/analysis.md)
 - [Troubleshooting](docs/troubleshooting.md)
 

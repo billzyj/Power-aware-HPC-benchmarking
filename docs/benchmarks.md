@@ -41,11 +41,12 @@ The OSU Micro-benchmarks suite is a collection of benchmarks designed to measure
 ### Installation
 
 ```bash
-# Navigate to the OSU benchmarks directory
-cd benchmarks/micro/osu
+# Create a build directory
+mkdir -p benchmarks/micro/osu/build
+cd benchmarks/micro/osu/build
 
-# Configure the build
-./configure
+# Configure the build with VPATH
+../configure
 
 # Build the benchmarks
 make
@@ -121,11 +122,12 @@ HPL (High Performance Linpack) is a benchmark used to evaluate the performance o
 ### Installation
 
 ```bash
-# Navigate to the HPL directory
-cd benchmarks/system/hpl
+# Create a build directory
+mkdir -p benchmarks/system/hpl/build
+cd benchmarks/system/hpl/build
 
-# Configure the build
-./configure
+# Configure the build with VPATH
+../configure
 
 # Build HPL
 make
@@ -265,7 +267,7 @@ When running HPL with power monitoring, you can analyze:
 You can run multiple benchmarks in sequence to gather comprehensive power-performance data:
 
 ```python
-from power_profiling import CPUMonitor, GPUMonitor, SystemMonitor
+from power_profiling import IntelMonitor, AMDMonitor, NvidiaGPUMonitor, AMDGPUMonitor, IPMIMonitor, RedfishMonitor, IDRACMonitor
 import time
 import json
 from datetime import datetime
@@ -273,9 +275,9 @@ import subprocess
 
 def run_benchmark_suite(output_dir='data/raw'):
     # Initialize monitors
-    cpu_monitor = CPUMonitor()
-    gpu_monitor = GPUMonitor()
-    system_monitor = SystemMonitor()
+    cpu_monitor = IntelMonitor()  # or AMDMonitor() depending on your CPU
+    gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() depending on your GPU
+    system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor() depending on your system
     
     # Run OSU latency test
     run_osu_benchmark('latency', duration=60, output_dir=output_dir)
@@ -301,9 +303,9 @@ You can customize benchmark parameters to suit your needs:
 ```python
 def run_osu_benchmark(test_name, duration=60, output_dir='data/raw', np=2):
     # Initialize monitors
-    cpu_monitor = CPUMonitor()
-    gpu_monitor = GPUMonitor()
-    system_monitor = SystemMonitor()
+    cpu_monitor = IntelMonitor()  # or AMDMonitor() depending on your CPU
+    gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() depending on your GPU
+    system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor() depending on your system
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Start monitoring
@@ -313,7 +315,7 @@ def run_osu_benchmark(test_name, duration=60, output_dir='data/raw', np=2):
     
     try:
         # Run OSU benchmark with custom number of processes
-        cmd = f"mpirun -np {np} ./benchmarks/micro/osu/osu_{test_name}"
+        cmd = f"mpirun -np {np} ./benchmarks/micro/osu/build/osu_{test_name}"
         process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         # Wait for the specified duration
@@ -388,13 +390,13 @@ HPL.out      output file name (if any)
 """
     
     # Write HPL.dat file
-    with open('benchmarks/system/hpl/HPL.dat', 'w') as f:
+    with open('benchmarks/system/hpl/build/HPL.dat', 'w') as f:
         f.write(hpl_dat)
     
     # Initialize monitors
-    cpu_monitor = CPUMonitor()
-    gpu_monitor = GPUMonitor()
-    system_monitor = SystemMonitor()
+    cpu_monitor = IntelMonitor()  # or AMDMonitor() depending on your CPU
+    gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() depending on your GPU
+    system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor() depending on your system
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Start monitoring
@@ -404,7 +406,7 @@ HPL.out      output file name (if any)
     
     try:
         # Run HPL
-        cmd = f"mpirun -np {p*q} ./benchmarks/system/hpl/xhpl"
+        cmd = f"mpirun -np {p*q} ./benchmarks/system/hpl/build/xhpl"
         process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         # Wait for the specified duration

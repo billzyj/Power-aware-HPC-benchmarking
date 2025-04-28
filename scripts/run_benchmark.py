@@ -15,19 +15,20 @@ from pathlib import Path
 
 # Add src directory to path to import power profiling modules
 sys.path.append(str(Path(__file__).parent.parent / 'src'))
-from power_profiling.monitors.cpu import CPUMonitor
-from power_profiling.monitors.gpu import GPUMonitor
-from power_profiling.monitors.system import SystemMonitor
+from power_profiling.monitors.cpu import IntelMonitor, AMDMonitor
+from power_profiling.monitors.gpu import NvidiaGPUMonitor, AMDGPUMonitor
+from power_profiling.monitors.system import IPMIMonitor, RedfishMonitor, IDRACMonitor
 
 class BenchmarkRunner:
     def __init__(self, output_dir):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Initialize power monitors
-        self.cpu_monitor = CPUMonitor()
-        self.gpu_monitor = GPUMonitor()
-        self.system_monitor = SystemMonitor()
+        # Initialize power monitors based on hardware
+        # You can modify these based on your system
+        self.cpu_monitor = IntelMonitor()  # or AMDMonitor() for AMD CPUs
+        self.gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() for AMD GPUs
+        self.system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor()
         
         # Create timestamp for this run
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -68,8 +69,8 @@ class BenchmarkRunner:
         self.start_monitoring()
         
         try:
-            # Run the OSU benchmark
-            cmd = f"mpirun -np 2 ./benchmarks/micro/osu/osu_{test_name}"
+            # Run the OSU benchmark using the build directory
+            cmd = f"mpirun -np 2 ./benchmarks/micro/osu/build/osu_{test_name}"
             process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
             # Wait for the specified duration
@@ -91,12 +92,52 @@ class BenchmarkRunner:
         """Run HPL benchmark with power monitoring"""
         print(f"Running HPL benchmark with problem size: {problem_size}")
         
+        # Create HPL.dat file in the build directory
+        hpl_dat = f"""HPLinpack benchmark input file
+Innovative Computing Laboratory, University of Tennessee
+HPL.out      output file name (if any)
+6            device out (6=stdout,7=stderr,file)
+1            # of problems sizes (N)
+{problem_size}         Ns
+1            # of NBs
+128          NBs
+0            PMAP process mapping (0=Row-,1=Column-major)
+1            # of process grids (P x Q)
+2            Ps
+2            Qs
+16.0         threshold
+1            # of panel fact
+2            PFACTs (0=left, 1=Crout, 2=Right)
+1            # of recursive stopping criterium
+4            NBMINs (>= 1)
+1            # of panels in recursion
+2            NDIVs
+1            # of recursive panel fact.
+1            RFACTs (0=left, 1=Crout, 2=Right)
+1            # of broadcast
+1            BCASTs (0=1rg,1=1rM,2=2rg,3=2rM,4=Lng,5=LnM)
+1            # of lookahead depth
+1            DEPTHs (>=0)
+2            SWAP (0=bin-exch,1=long,2=mix)
+64           swapping threshold
+0            L1 in (0=transposed,1=no-transposed) form
+0            U  in (0=transposed,1=no-transposed) form
+1            Equilibration (0=no,1=yes)
+8            memory alignment in double (> 0)
+"""
+        
+        # Write HPL.dat file to the build directory
+        hpl_dat_path = Path('benchmarks/system/hpl/build/HPL.dat')
+        hpl_dat_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(hpl_dat_path, 'w') as f:
+            f.write(hpl_dat)
+        
         # Start power monitoring
         self.start_monitoring()
         
         try:
-            # Run HPL
-            cmd = f"mpirun -np 4 ./benchmarks/system/hpl/xhpl"
+            # Run HPL using the build directory
+            cmd = f"mpirun -np 4 ./benchmarks/system/hpl/build/xhpl"
             process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
             # Wait for the specified duration

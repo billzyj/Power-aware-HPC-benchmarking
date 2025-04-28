@@ -1,38 +1,64 @@
 #!/usr/bin/env python3
 
 # Before running this script, ensure you have installed dependencies:
-# pip install -r requirements.txt
+# pip install -r requirements/base.txt
+# (and dev.txt/test.txt as needed)
 
 import sys
 from pathlib import Path
 
-# Add src directory to path to import power profiling modules
-sys.path.append(str(Path(__file__).parent.parent / 'src'))
+# Add src directory to Python path
+src_dir = Path(__file__).parent.parent / 'src'
+sys.path.append(str(src_dir))
 
-try:
-    # Import CPU monitors
-    from power_profiling.monitors.cpu import CPUMonitor, IntelMonitor, AMDMonitor
-    print("Successfully imported CPU monitors!")
-    print(f"CPUMonitor: {CPUMonitor}")
-    print(f"IntelMonitor: {IntelMonitor}")
-    print(f"AMDMonitor: {AMDMonitor}")
+def test_imports():
+    """Test importing all power monitoring modules"""
+    print("Testing imports for power monitoring modules...")
     
-    # Import GPU monitors
-    from power_profiling.monitors.gpu import GPUMonitor, NvidiaGPUMonitor, AMDGPUMonitor
-    print("Successfully imported GPU monitors!")
-    print(f"GPUMonitor: {GPUMonitor}")
-    print(f"NvidiaGPUMonitor: {NvidiaGPUMonitor}")
-    print(f"AMDGPUMonitor: {AMDGPUMonitor}")
+    # Test CPU monitors
+    try:
+        from power_monitoring.cpu.intel import IntelMonitor
+        print("✓ Successfully imported IntelMonitor")
+    except ImportError as e:
+        print(f"✗ Failed to import IntelMonitor: {e}")
     
-    # Import system monitors
-    from power_profiling.monitors.system import SystemMonitor, IPMIMonitor, RedfishMonitor, IDRACMonitor
-    print("Successfully imported system monitors!")
-    print(f"SystemMonitor: {SystemMonitor}")
-    print(f"IPMIMonitor: {IPMIMonitor}")
-    print(f"RedfishMonitor: {RedfishMonitor}")
-    print(f"IDRACMonitor: {IDRACMonitor}")
+    try:
+        from power_monitoring.cpu.amd import AMDMonitor
+        print("✓ Successfully imported AMDMonitor")
+    except ImportError as e:
+        print(f"✗ Failed to import AMDMonitor: {e}")
     
-    print("All power profiling modules imported successfully!")
-except ImportError as e:
-    print(f"Error importing modules: {e}")
-    print(f"Python path: {sys.path}") 
+    # Test GPU monitors
+    try:
+        from power_monitoring.gpu.nvidia import NvidiaGPUMonitor
+        print("✓ Successfully imported NvidiaGPUMonitor")
+    except ImportError as e:
+        print(f"✗ Failed to import NvidiaGPUMonitor: {e}")
+    
+    try:
+        from power_monitoring.gpu.amd import AMDGPUMonitor
+        print("✓ Successfully imported AMDGPUMonitor")
+    except ImportError as e:
+        print(f"✗ Failed to import AMDGPUMonitor: {e}")
+    
+    # Test system monitors
+    try:
+        from power_monitoring.system.ipmi import IPMIMonitor
+        print("✓ Successfully imported IPMIMonitor")
+    except ImportError as e:
+        print(f"✗ Failed to import IPMIMonitor: {e}")
+    
+    try:
+        from power_monitoring.system.redfish import RedfishMonitor
+        print("✓ Successfully imported RedfishMonitor")
+    except ImportError as e:
+        print(f"✗ Failed to import RedfishMonitor: {e}")
+    
+    try:
+        from power_monitoring.system.idrac import IDRACMonitor
+        print("✓ Successfully imported IDRACMonitor")
+    except ImportError as e:
+        print(f"✗ Failed to import IDRACMonitor: {e}")
+
+if __name__ == '__main__':
+    test_imports() 

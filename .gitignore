@@ -55,3 +55,6 @@ logs/
 # JSON files (except configuration files)
 *.json
 !config/*.json
+
+# Build directories
+**/build/

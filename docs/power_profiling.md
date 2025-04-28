@@ -1,227 +1,258 @@
-# Power Profiling Guide
-
-This guide provides detailed information about the power monitoring capabilities in the Power-aware HPC Benchmarking project.
+# Power Profiling Framework
 
 ## Overview
 
-The project provides a flexible and extensible framework for monitoring power consumption across different components:
-
-- CPU power monitoring using frequency and utilization metrics
-- GPU power monitoring using NVIDIA NVML
-- Combined monitoring of multiple power sources
-- Real-time data collection and analysis
-- Extensible architecture for adding new power monitoring sources
+The Power Profiling Framework is a comprehensive solution for monitoring power consumption across different hardware components in HPC systems. It provides a unified interface for collecting power data from various sources including CPU, GPU, and system-level power monitoring.
 
 ## Architecture
 
-### Core Components
+The framework is organized into the following components:
 
-1. **PowerReading Class** (`src/power_profiling/utils/power_reading.py`)
-   - Represents a single power measurement
-   - Stores timestamp, power value, and additional metrics
-   - Provides methods for data conversion and serialization
-   
-2. **BasePowerMonitor** (`src/power_profiling/monitors/base.py`)
-   - Abstract base class for all power monitors
-   - Defines common interface and functionality
-   - Handles data collection and basic statistics
-   
-3. **CPUMonitor** (`src/power_profiling/monitors/cpu.py`)
-   - Monitors CPU power consumption
-   - Uses CPU frequency and utilization as power indicators
-   - Provides real-time CPU power measurements
-   
-4. **GPUMonitor** (`src/power_profiling/monitors/gpu.py`)
-   - Monitors NVIDIA GPU power consumption
-   - Uses NVML for direct power measurements
-   - Collects additional GPU metrics (temperature, utilization)
+- **Base Classes**: Define the interface and common functionality for all monitors
+- **CPU Monitors**: Implementations for Intel and AMD processors
+- **GPU Monitors**: Implementations for NVIDIA and AMD GPUs
+- **System Monitors**: Implementations for IPMI, Redfish, and iDRAC
+- **Data Collection**: Utilities for collecting and storing power data
+- **Analysis Tools**: Scripts for analyzing and visualizing power data
 
 ## Power Reading Format
 
-Each power reading contains:
+All power monitors return data in a standardized format:
 
 ```python
 {
-    "timestamp": "2024-03-20T10:30:00.123456",  # ISO format timestamp
-    "power": 75.5,                              # Power in Watts
-    "source": "cpu",                            # Power source identifier
-    "metadata": {                               # Additional metrics
-        "frequency": 3.2,                       # CPU frequency in GHz
-        "utilization": 85.5,                    # Utilization percentage
-        "temperature": 65.0                     # Temperature in Celsius
+    "timestamp": "2023-01-01T12:00:00.000Z",
+    "source": "cpu",
+    "component": "intel",
+    "metrics": {
+        "power": 120.5,  # Watts
+        "temperature": 45.2,  # Celsius
+        "frequency": 3.5  # GHz
     }
 }
 ```
 
 ## Monitor Configuration
 
-### CPU Monitor
+### CPU Monitors
+
+#### Intel Monitor
 
 ```python
-from src.power_profiling.monitors.cpu import CPUMonitor
+from power_monitoring.cpu.intel import IntelMonitor
 
-# Basic configuration
-cpu_monitor = CPUMonitor(
-    sampling_interval=0.1,  # 100ms sampling
+# Configure Intel CPU monitor
+intel_monitor = IntelMonitor(
+    sampling_interval=1.0,  # seconds
+    metrics=["power", "temperature", "frequency"]
 )
 
-# Advanced configuration
-cpu_monitor = CPUMonitor(
-    sampling_interval=0.1,
-    base_power=15.0,       # Base power consumption in Watts
-    max_power=95.0,        # Maximum power consumption in Watts
-)
+# Start monitoring
+intel_monitor.start()
+
+# Get readings
+readings = intel_monitor.get_readings()
+
+# Stop monitoring
+intel_monitor.stop()
 ```
 
-### GPU Monitor
+#### AMD Monitor
 
 ```python
-from src.power_profiling.monitors.gpu import GPUMonitor
+from power_monitoring.cpu.amd import AMDMonitor
 
-# Basic configuration
-gpu_monitor = GPUMonitor(
-    sampling_interval=0.1,  # 100ms sampling
+# Configure AMD CPU monitor
+amd_monitor = AMDMonitor(
+    sampling_interval=1.0,  # seconds
+    metrics=["power", "temperature", "frequency"]
 )
 
-# Advanced configuration
-gpu_monitor = GPUMonitor(
-    sampling_interval=0.1,
-    device_index=0,        # GPU device index
+# Start monitoring
+amd_monitor.start()
+
+# Get readings
+readings = amd_monitor.get_readings()
+
+# Stop monitoring
+amd_monitor.stop()
+```
+
+### GPU Monitors
+
+#### NVIDIA GPU Monitor
+
+```python
+from power_monitoring.gpu.nvidia import NvidiaGPUMonitor
+
+# Configure NVIDIA GPU monitor
+nvidia_monitor = NvidiaGPUMonitor(
+    sampling_interval=1.0,  # seconds
+    metrics=["power", "temperature", "utilization"]
 )
+
+# Start monitoring
+nvidia_monitor.start()
+
+# Get readings
+readings = nvidia_monitor.get_readings()
+
+# Stop monitoring
+nvidia_monitor.stop()
+```
+
+#### AMD GPU Monitor
+
+```python
+from power_monitoring.gpu.amd import AMDGPUMonitor
+
+# Configure AMD GPU monitor
+amd_gpu_monitor = AMDGPUMonitor(
+    sampling_interval=1.0,  # seconds
+    metrics=["power", "temperature", "utilization"]
+)
+
+# Start monitoring
+amd_gpu_monitor.start()
+
+# Get readings
+readings = amd_gpu_monitor.get_readings()
+
+# Stop monitoring
+amd_gpu_monitor.stop()
+```
+
+### System Monitors
+
+#### IPMI Monitor
+
+```python
+from power_monitoring.system.ipmi import IPMIMonitor
+
+# Configure IPMI monitor
+ipmi_monitor = IPMIMonitor(
+    host="192.168.1.100",
+    username="admin",
+    password="password",
+    sampling_interval=1.0  # seconds
+)
+
+# Start monitoring
+ipmi_monitor.start()
+
+# Get readings
+readings = ipmi_monitor.get_readings()
+
+# Stop monitoring
+ipmi_monitor.stop()
+```
+
+#### Redfish Monitor
+
+```python
+from power_monitoring.system.redfish import RedfishMonitor
+
+# Configure Redfish monitor
+redfish_monitor = RedfishMonitor(
+    host="192.168.1.100",
+    username="admin",
+    password="password",
+    sampling_interval=1.0  # seconds
+)
+
+# Start monitoring
+redfish_monitor.start()
+
+# Get readings
+readings = redfish_monitor.get_readings()
+
+# Stop monitoring
+redfish_monitor.stop()
+```
+
+#### iDRAC Monitor
+
+```python
+from power_monitoring.system.idrac import IDRACMonitor
+
+# Configure iDRAC monitor
+idrac_monitor = IDRACMonitor(
+    host="192.168.1.100",
+    username="admin",
+    password="password",
+    sampling_interval=1.0  # seconds
+)
+
+# Start monitoring
+idrac_monitor.start()
+
+# Get readings
+readings = idrac_monitor.get_readings()
+
+# Stop monitoring
+idrac_monitor.stop()
 ```
 
 ## Data Collection
 
-### Starting and Stopping Monitors
+The framework provides utilities for collecting and storing power data:
 
 ```python
-# Start monitoring
-monitor.start()
+from power_monitoring.collection import PowerDataCollector
 
-# Your workload here
-time.sleep(5)
+# Create a collector with multiple monitors
+collector = PowerDataCollector([
+    intel_monitor,
+    nvidia_monitor,
+    ipmi_monitor
+])
 
-# Stop monitoring and get data
-readings = monitor.stop()
-```
+# Start collecting data
+collector.start()
 
-### Accessing Data
+# Collect data for a specific duration
+data = collector.collect(duration=60)  # seconds
 
-```python
-# Get basic statistics
-stats = monitor.get_statistics()
-print(f"Average Power: {stats['average']:.2f} W")
-print(f"Peak Power: {stats['peak']:.2f} W")
-print(f"Total Energy: {stats['total_energy']:.2f} J")
+# Stop collecting data
+collector.stop()
 
-# Access raw readings
-for reading in monitor.readings:
-    print(f"Time: {reading.timestamp}, Power: {reading.power:.2f} W")
+# Save data to a file
+collector.save_data("power_data.json")
 ```
 
 ## Error Handling
 
-The monitoring framework includes robust error handling:
+The framework includes robust error handling:
 
 ```python
 try:
     monitor.start()
-    # ... workload ...
-    data = monitor.stop()
-except Exception as e:
-    print(f"Monitoring error: {e}")
-    # Handle error appropriately
-finally:
-    if monitor.is_running():
-        monitor.stop()
-```
+except MonitorError as e:
+    print(f"Failed to start monitor: {e}")
+    # Handle error
 
-## Extending the Framework
-
-To create a new power monitor:
-
-1. Create a new class inheriting from `BasePowerMonitor`
-2. Implement required abstract methods:
-   - `start()`
-   - `stop()`
-   - `is_running()`
-   - `clear()`
-
-Example template:
-
-```python
-from src.power_profiling.monitors.base import BasePowerMonitor
-from src.power_profiling.utils.power_reading import PowerReading
-
-class CustomMonitor(BasePowerMonitor):
-    def __init__(self, sampling_interval=1.0):
-        super().__init__(sampling_interval)
-        self._running = False
-        
-    def start(self):
-        if self.is_running():
-            return
-        self._running = True
-        # Initialize monitoring thread/process
-        
-    def stop(self):
-        if not self.is_running():
-            return self.readings
-        self._running = False
-        # Clean up monitoring resources
-        return self.readings
-        
-    def is_running(self):
-        return self._running
-        
-    def clear(self):
-        self.readings.clear()
+try:
+    readings = monitor.get_readings()
+except ReadingError as e:
+    print(f"Failed to get readings: {e}")
+    # Handle error
 ```
 
 ## Best Practices
 
-1. **Sampling Interval**
-   - Choose based on workload duration and required granularity
-   - Consider system overhead for very small intervals
-   - Typical range: 0.1s to 1.0s
+1. **Sampling Interval**: Choose an appropriate sampling interval based on your requirements. A shorter interval provides more detailed data but increases overhead.
 
-2. **Resource Management**
-   - Always stop monitors when done
-   - Use context managers or try-finally blocks
-   - Clear readings if reusing monitor instances
+2. **Error Handling**: Always implement proper error handling to ensure robustness.
 
-3. **Error Handling**
-   - Check monitor status before operations
-   - Handle hardware-specific errors
-   - Implement graceful fallbacks
+3. **Resource Management**: Use context managers or ensure proper cleanup by calling `stop()` when done.
 
-4. **Data Management**
-   - Process data in batches for long runs
-   - Consider memory usage for high-frequency sampling
-   - Export data periodically if needed
+4. **Data Storage**: Consider using a database for long-term storage of power data.
 
-## Troubleshooting
-
-Common issues and solutions:
-
-1. **High CPU Usage**
-   - Increase sampling interval
-   - Reduce number of active monitors
-   - Check for resource contention
-
-2. **Memory Growth**
-   - Clear readings periodically
-   - Export data to disk
-   - Monitor memory usage
-
-3. **GPU Monitoring Failures**
-   - Verify NVIDIA driver installation
-   - Check NVML initialization
-   - Confirm GPU support for power monitoring
+5. **Visualization**: Use the provided analysis tools to visualize power data and identify trends.
 
 ## Additional Resources
 
-- [Example Notebooks](../docs/examples/)
-- [Analysis Guide](analysis.md)
-- [Troubleshooting Guide](troubleshooting.md)
-- [API Reference](api_reference.md)
+- [Intel Power Monitoring API Documentation](https://www.intel.com/content/www/us/en/developer/articles/technical/software-tools-power-monitoring-api.html)
+- [NVIDIA Management Library Documentation](https://developer.nvidia.com/nvidia-management-library-nvml)
+- [IPMI Specification](https://www.intel.com/content/www/us/en/servers/ipmi/ipmi-specifications.html)
+- [Redfish Specification](https://www.dmtf.org/standards/redfish)

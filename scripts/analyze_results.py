@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 import numpy as np
+import glob
 
 def load_power_data(data_file):
     """Load power monitoring data from JSON file"""
@@ -26,12 +27,16 @@ def process_osu_results(result_file):
     data = []
     for line in lines:
         if line.strip() and not line.startswith('#'):
-            size, latency, bandwidth = map(float, line.strip().split())
-            data.append({
-                'size': size,
-                'latency': latency,
-                'bandwidth': bandwidth
-            })
+            try:
+                size, latency, bandwidth = map(float, line.strip().split())
+                data.append({
+                    'size': size,
+                    'latency': latency,
+                    'bandwidth': bandwidth
+                })
+            except ValueError:
+                # Skip lines that don't match the expected format
+                continue
     
     return pd.DataFrame(data)
 
@@ -42,11 +47,27 @@ def process_hpl_results(result_file):
     
     # Extract key metrics from HPL output
     # This is a simplified version - you might need to adjust based on your HPL output format
-    metrics = {
-        'Gflops': float(content.split('Gflops')[0].split()[-1]),
-        'Time': float(content.split('Time')[0].split()[-1]),
-        'N': int(content.split('N=')[1].split()[0])
-    }
+    metrics = {}
+    
+    try:
+        # Extract problem size
+        n_match = content.split('N=')[1].split()[0]
+        metrics['N'] = int(n_match)
+        
+        # Extract performance
+        gflops_match = content.split('Gflops')[0].split()[-1]
+        metrics['Gflops'] = float(gflops_match)
+        
+        # Extract time
+        time_match = content.split('Time')[0].split()[-1]
+        metrics['Time'] = float(time_match)
+    except (IndexError, ValueError):
+        # If extraction fails, set default values
+        metrics = {
+            'N': 0,
+            'Gflops': 0.0,
+            'Time': 0.0
+        }
     
     return pd.DataFrame([metrics])
 
@@ -56,15 +77,33 @@ def create_power_plot(power_data, output_file):
     
     # Plot CPU power
     if 'cpu_power' in power_data:
-        plt.plot(power_data['cpu_power'], label='CPU Power')
+        if isinstance(power_data['cpu_power'], list):
+            plt.plot(power_data['cpu_power'], label='CPU Power')
+        else:
+            # Handle the case where cpu_power is a dictionary with timestamps
+            timestamps = list(power_data['cpu_power'].keys())
+            values = [power_data['cpu_power'][ts] for ts in timestamps]
+            plt.plot(timestamps, values, label='CPU Power')
     
     # Plot GPU power
     if 'gpu_power' in power_data:
-        plt.plot(power_data['gpu_power'], label='GPU Power')
+        if isinstance(power_data['gpu_power'], list):
+            plt.plot(power_data['gpu_power'], label='GPU Power')
+        else:
+            # Handle the case where gpu_power is a dictionary with timestamps
+            timestamps = list(power_data['gpu_power'].keys())
+            values = [power_data['gpu_power'][ts] for ts in timestamps]
+            plt.plot(timestamps, values, label='GPU Power')
     
     # Plot system power
     if 'system_power' in power_data:
-        plt.plot(power_data['system_power'], label='System Power')
+        if isinstance(power_data['system_power'], list):
+            plt.plot(power_data['system_power'], label='System Power')
+        else:
+            # Handle the case where system_power is a dictionary with timestamps
+            timestamps = list(power_data['system_power'].keys())
+            values = [power_data['system_power'][ts] for ts in timestamps]
+            plt.plot(timestamps, values, label='System Power')
     
     plt.xlabel('Time')
     plt.ylabel('Power (Watts)')
@@ -124,13 +163,14 @@ def main():
         create_power_plot(power_data, output_dir / f'power_plot_{timestamp}.png')
         
         # Process corresponding benchmark results
-        osu_file = data_dir / f'osu_*_{timestamp}.txt'
+        osu_files = list(data_dir.glob(f'osu_*_{timestamp}.txt'))
         hpl_file = data_dir / f'hpl_{timestamp}.txt'
         
-        if osu_file.exists():
+        for osu_file in osu_files:
+            test_name = osu_file.stem.split('_')[1]
             osu_data = process_osu_results(osu_file)
-            create_performance_plot(osu_data, output_dir / f'osu_performance_{timestamp}.png')
-            osu_data.to_csv(output_dir / f'osu_data_{timestamp}.csv', index=False)
+            create_performance_plot(osu_data, output_dir / f'osu_{test_name}_performance_{timestamp}.png')
+            osu_data.to_csv(output_dir / f'osu_{test_name}_data_{timestamp}.csv', index=False)
         
         if hpl_file.exists():
             hpl_data = process_hpl_results(hpl_file)
