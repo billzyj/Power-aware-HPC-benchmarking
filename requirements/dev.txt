@@ -1,21 +1,14 @@
--r base.txt
-
-# Testing
-pytest>=6.2.0
-pytest-cov>=2.12.0
-
-# Linting
-flake8>=3.9.0
-black>=21.5b2
-isort>=5.9.0
-
-# Type checking
-mypy>=0.910
+# Development tools
+black>=21.5b2  # Code formatting
+flake8>=3.9.0  # Code linting
+pytest>=6.2.0  # Testing
+pytest-cov>=2.12.0  # Test coverage
+mypy>=0.910  # Type checking
+pre-commit>=2.15.0  # Pre-commit hooks
 
 # Documentation
 sphinx>=4.0.0
 sphinx-rtd-theme>=0.5.0
+nbsphinx>=0.8.0  # For Jupyter notebook documentation
 
-# Development tools
-ipython>=7.0.0
-jupyter>=1.0.0 
+-r base.txt 

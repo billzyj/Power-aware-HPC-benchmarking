@@ -1,23 +1,15 @@
 from setuptools import setup, find_packages
 
+# NOTE: Dependencies are managed via requirements/base.txt, dev.txt, and test.txt.
+# See the README for installation instructions for users, developers, and testers.
+# This setup.py is provided for editable/development installs (pip install -e .)
+
 setup(
     name="power_aware_hpc_benchmarking",
     version="0.1.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    install_requires=[
-        "numpy",
-        "pandas",
-        "matplotlib",
-    ],
-    extras_require={
-        "dev": [
-            "pytest",
-            "flake8",
-            "mypy",
-        ],
-    },
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     author="Your Name",
     author_email="your.email@example.com",
     description="Power-aware HPC benchmarking framework",
@@ -29,10 +21,9 @@ setup(
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: BSD License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering",
     ],
 ) 

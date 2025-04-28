@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# Before running these tests, ensure you have installed dependencies:
+# pip install -r requirements/base.txt
+# pip install -r requirements/test.txt
+
 import unittest
 import os
 import tempfile

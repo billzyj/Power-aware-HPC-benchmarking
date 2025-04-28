@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# Before running this script, ensure you have installed dependencies:
+# pip install -r requirements/base.txt
+# (and dev.txt/test.txt as needed)
+
 import argparse
 import os
 import subprocess

@@ -2,6 +2,132 @@
 
 This project integrates power profiling capabilities with standard HPC benchmarks to measure and analyze energy consumption during benchmark execution. It provides a comprehensive framework for power-aware performance analysis of HPC systems.
 
+## Features
+
+- Integrated power monitoring with standard HPC benchmarks
+- Support for multiple power monitoring backends:
+  - CPU (Intel RAPL and AMD K10Temp)
+  - GPU (NVIDIA GPUs via NVML)
+  - System-level monitoring
+- Real-time power consumption tracking
+- Automated data collection and analysis
+- Interactive Jupyter notebook examples
+- Comprehensive power usage statistics and visualization
+- Extensible monitoring framework
+
+## Requirements
+
+### Core Requirements
+- Python 3.8+
+- numpy>=1.19.0
+- pandas>=1.2.0
+- matplotlib>=3.3.0
+- seaborn>=0.11.0
+- jupyter>=1.0.0
+
+### Monitoring Requirements
+- psutil>=5.8.0 (for CPU monitoring)
+- pynvml>=11.0.0 (for NVIDIA GPU monitoring)
+- Intel CPU with RAPL support (for Intel CPU power monitoring)
+- AMD CPU with K10Temp support (for AMD CPU power monitoring)
+- NVIDIA GPU with NVML support (for GPU power monitoring)
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/Power-aware-HPC-benchmarking.git
+cd Power-aware-HPC-benchmarking
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+3. Install dependencies (all requirements files are in the `requirements/` folder):
+
+- **For users:**
+  ```bash
+  pip install -r requirements/base.txt
+  ```
+- **For developers:**
+  ```bash
+  pip install -r requirements/base.txt
+  pip install -r requirements/dev.txt
+  ```
+- **For testers:**
+  ```bash
+  pip install -r requirements/base.txt
+  pip install -r requirements/test.txt
+  ```
+
+> **Tip:** If you want a full development and testing environment, install all three in sequence.
+
+The requirements files are structured as follows:
+- `requirements/base.txt` - Core dependencies for running the project
+- `requirements/dev.txt` - Additional tools for development (requires base)
+- `requirements/test.txt` - Dependencies for running tests (requires base)
+
+## Quick Start
+
+### Basic Power Monitoring
+
+```python
+from src.power_profiling.monitors.cpu import CPUMonitor
+from src.power_profiling.monitors.gpu import GPUMonitor
+import time
+
+# Initialize monitors
+cpu_monitor = CPUMonitor(sampling_interval=0.1)
+gpu_monitor = GPUMonitor(sampling_interval=0.1)
+
+# Start monitoring
+cpu_monitor.start()
+gpu_monitor.start()
+
+# Run your workload
+time.sleep(5)  # Replace with your actual workload
+
+# Stop monitoring and get data
+cpu_data = cpu_monitor.stop()
+gpu_data = gpu_monitor.stop()
+
+# Get statistics
+cpu_stats = cpu_monitor.get_statistics()
+gpu_stats = gpu_monitor.get_statistics()
+
+print("CPU Statistics:", cpu_stats)
+print("GPU Statistics:", gpu_stats)
+```
+
+### Interactive Examples
+
+The project includes Jupyter notebooks with comprehensive examples, located in `docs/examples/`:
+
+1. Basic Power Monitoring (`docs/examples/basic_power_monitoring.ipynb`):
+   - Setting up power monitors
+   - Basic CPU and GPU monitoring
+   - Collecting and visualizing power data
+   - Basic statistics and analysis
+
+2. Advanced Usage (`docs/examples/advanced_usage.ipynb`):
+   - Custom power monitor implementation
+   - Integration with HPC workloads
+   - Advanced data analysis
+   - Power-aware optimization
+   - Report generation
+
+3. Power Monitoring Example (`docs/examples/power_monitoring_example.ipynb`):
+   - Additional demonstration of power monitoring features
+
+To run the examples:
+
+```bash
+jupyter notebook docs/examples/
+```
+
 ## Project Structure
 
 ```
@@ -68,309 +194,69 @@ This project integrates power profiling capabilities with standard HPC benchmark
 └── LICENSE            # License file
 ```
 
-## Features
+## Power Monitoring Details
 
-- Integrated power monitoring with standard HPC benchmarks
-- Support for OSU Micro-benchmarks and HPL
-- Real-time power consumption tracking for:
-  - CPU (Intel RAPL and AMD K10Temp)
-  - GPU (NVIDIA GPUs)
-  - System (Dell iDRAC)
-- Automated data collection and analysis
-- Interactive visualizations of power-performance relationships
-- Flexible configuration system for benchmarks and monitoring
-- Comprehensive unit tests for all components
-- Example notebooks for easy usage
+### CPU Monitoring
 
-## Requirements
+The CPU monitor supports both Intel and AMD processors:
 
-- Python 3.6+
-- Intel CPU with RAPL support (for CPU power monitoring)
-- AMD CPU with K10Temp support (for AMD CPU power monitoring)
-- NVIDIA GPU with nvidia-smi (for GPU power monitoring)
-- Dell server with iDRAC (for system power monitoring)
+- Intel: Uses RAPL (Running Average Power Limit) interface
+- AMD: Uses K10Temp interface
+- Fallback: Uses CPU frequency as a proxy for power consumption
 
-## Installation
+### GPU Monitoring
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/Power-aware-HPC-benchmarking.git
-cd Power-aware-HPC-benchmarking
-```
+The GPU monitor uses NVIDIA's NVML library to collect:
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
+- Power consumption
+- GPU utilization
+- Memory utilization
+- Temperature
+- Additional metadata
 
-3. Install dependencies:
-```bash
-# For basic usage
-pip install -r requirements/base.txt
+### Power Reading Data Structure
 
-# For development
-pip install -r requirements/dev.txt
+All power readings include:
 
-# For testing
-pip install -r requirements/test.txt
-```
+- Timestamp
+- Power consumption in watts
+- Component-specific metadata
+- Statistical aggregations
 
-4. Install the package in development mode:
+## Editable/Development Installation
+
+If you want to work on the source code and have changes reflected immediately (without reinstalling), you can use the provided `setup.py` for an editable install:
+
 ```bash
 pip install -e .
 ```
 
-5. Build and install benchmarks:
-```bash
-# Build OSU Micro-benchmarks
-cd src/benchmarks/micro/osu
-./configure
-make
+> **Note:** This only installs the package itself. You should still install dependencies using the requirements files as described above:
+> - `pip install -r requirements/base.txt` (and dev.txt/test.txt as needed)
 
-# Build HPL
-cd ../../system/hpl
-./configure
-make
-```
-
-## Configuration
-
-The project uses a flexible configuration system with JSON files:
-
-### Benchmark Configuration
-
-1. OSU Micro-benchmarks (`config/benchmarks/osu_config.json`):
-   - Test-specific settings (latency, bandwidth, allreduce)
-   - Process count and message sizes
-   - MPI runtime options
-
-2. HPL (`config/benchmarks/hpl_config.json`):
-   - Problem sizes and process grid configurations
-   - Algorithm parameters
-   - Runtime settings
-
-### Power Monitoring Configuration
-
-Power monitoring settings (`config/power_profiling/monitoring_config.json`):
-- CPU monitoring with RAPL or K10Temp
-- GPU monitoring with NVIDIA SMI
-- System monitoring with iDRAC
-- Data collection and aggregation settings
-
-See the [Configuration README](config/README.md) for detailed configuration options.
-
-## Usage
-
-### Power Monitoring
-
-The project provides several power monitoring backends:
-
-#### CPU Power Monitoring
-
-```python
-from src.power_profiling.monitors.cpu import CPUMonitor
-
-# Initialize CPU monitor
-cpu_monitor = CPUMonitor(sampling_interval=0.1)
-
-# Start monitoring
-cpu_monitor.start()
-
-# Let it run for some time
-import time
-time.sleep(10)
-
-# Stop monitoring and get data
-cpu_data = cpu_monitor.stop()
-
-# Get statistics
-stats = cpu_monitor.get_statistics()
-print(f"CPU Power Statistics: {stats}")
-```
-
-#### GPU Power Monitoring
-
-```python
-from src.power_profiling.monitors.gpu import GPUMonitor
-
-# Initialize GPU monitor (optionally specify GPU IDs)
-gpu_monitor = GPUMonitor(sampling_interval=0.1, gpu_ids=[0, 1])
-
-# Start monitoring
-gpu_monitor.start()
-
-# Let it run for some time
-import time
-time.sleep(10)
-
-# Stop monitoring and get data
-gpu_data = gpu_monitor.stop()
-
-# Get statistics
-stats = gpu_monitor.get_statistics()
-print(f"GPU Power Statistics: {stats}")
-```
-
-#### System Power Monitoring
-
-```python
-from src.power_profiling.monitors.system import SystemMonitor
-
-# Initialize system monitor with iDRAC credentials
-system_monitor = SystemMonitor(
-    sampling_interval=0.1,
-    idrac_host="idrac.example.com",
-    idrac_user="root",
-    idrac_password="calvin"
-)
-
-# Start monitoring
-system_monitor.start()
-
-# Let it run for some time
-import time
-time.sleep(10)
-
-# Stop monitoring and get data
-system_data = system_monitor.stop()
-
-# Get statistics
-stats = system_monitor.get_statistics()
-print(f"System Power Statistics: {stats}")
-```
-
-### Power Analysis
-
-```python
-from src.analysis.power_analysis import PowerAnalyzer
-
-# Initialize analyzer with power readings
-analyzer = PowerAnalyzer(power_readings)
-
-# Perform analysis
-results = analyzer.analyze()
-
-# Access statistics
-print(f"Statistics: {results.statistics}")
-
-# Display plots
-results.plots['power_time'].show()
-results.plots['power_distribution'].show()
-results.plots['summary'].show()
-
-# Export results
-analyzer.export_results("power_analysis_results")
-```
-
-### Running Benchmarks with Power Monitoring
-
-1. Configure benchmark and monitoring settings in the respective JSON files.
-
-2. Run OSU Micro-benchmarks:
-```bash
-python scripts/run_benchmark.py --config config/benchmarks/osu_config.json
-```
-
-3. Run HPL:
-```bash
-python scripts/run_benchmark.py --config config/benchmarks/hpl_config.json
-```
-
-### Analyzing Results
-
-```bash
-python scripts/analyze_results.py --data-dir data/raw --output-dir data/processed
-```
-
-## Example Notebooks
-
-The project includes example notebooks to demonstrate its features:
-
-- [Power Monitoring Example](docs/examples/power_monitoring_example.ipynb): Demonstrates how to use the power monitoring and analysis tools.
-
-## Development
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# Run specific test suite
-pytest tests/power_profiling/
-pytest tests/benchmarks/
-pytest tests/analysis/
-```
-
-### Code Style
-
-This project follows PEP 8 style guidelines. To check your code:
-
-```bash
-# Install development dependencies
-pip install -r requirements/dev.txt
-
-# Run linter
-flake8 src tests
-
-# Run type checker
-mypy src tests
-```
+This approach is recommended for developers contributing to the project.
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-This project is licensed under the BSD 3-Clause License - see the LICENSE file for details.
+This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
 
-## Troubleshooting
+## Documentation
 
-### BLAS Not Found Error
+For more detailed documentation, see:
 
-If you encounter the "BLAS not found" error when building HPL, follow these steps:
+- [Quick Start Guide](docs/quickstart.md)
+- [Power Profiling Guide](docs/power_profiling.md)
+- [Analysis Guide](docs/analysis.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
-1. Install OpenBLAS from source:
-   ```bash
-   # Install build dependencies
-   yum groupinstall "Development Tools"
-   yum install cmake gcc gcc-c++ gcc-gfortran
-   
-   # Clone and build OpenBLAS
-   git clone https://github.com/xianyi/OpenBLAS.git
-   cd OpenBLAS
-   make
-   make install
-   ```
+## Contact
 
-2. Set environment variables for OpenBLAS:
-   ```bash
-   export LD_LIBRARY_PATH=/opt/OpenBLAS/lib:$LD_LIBRARY_PATH
-   export LIBRARY_PATH=/opt/OpenBLAS/lib:$LIBRARY_PATH
-   export CPATH=/opt/OpenBLAS/include:$CPATH
-   ```
-
-3. Configure HPL with the correct compiler and BLAS library:
-   ```bash
-   # Set MPI compilers
-   export CC=mpicc
-   export CXX=mpicxx
-   export FC=mpif90
-   export F77=mpif77
-   
-   # Configure HPL
-   ./configure --with-blas=/opt/OpenBLAS/lib/libopenblas.so
-   ```
-
-4. Build HPL:
-   ```bash
-   make
-   ```
-
-If you're still having issues with the package manager (e.g., segmentation faults with dnf), building OpenBLAS from source is a reliable workaround.
+For questions and support, please open an issue on the GitHub repository.
