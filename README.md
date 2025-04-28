@@ -7,8 +7,8 @@ This project integrates power profiling capabilities with standard HPC benchmark
 - Integrated power monitoring with standard HPC benchmarks
 - Support for multiple power monitoring backends:
   - CPU (Intel RAPL and AMD K10Temp)
-  - GPU (NVIDIA GPUs via NVML)
-  - System-level monitoring
+  - GPU (NVIDIA GPUs via NVML, AMD GPUs)
+  - System-level monitoring (IPMI, Redfish, Dell iDRAC)
 - Real-time power consumption tracking
 - Automated data collection and analysis
 - Interactive Jupyter notebook examples
@@ -27,10 +27,17 @@ This project integrates power profiling capabilities with standard HPC benchmark
 
 ### Monitoring Requirements
 - psutil>=5.8.0 (for CPU monitoring)
-- pynvml>=11.0.0 (for NVIDIA GPU monitoring)
+- nvidia-ml-py3>=11.0.0 (for NVIDIA GPU monitoring)
+- pyipmi>=0.11.0 (for IPMI system monitoring)
+- requests>=2.25.0 (for Redfish API monitoring)
+- urllib3>=1.26.0 (for Redfish API monitoring)
 - Intel CPU with RAPL support (for Intel CPU power monitoring)
 - AMD CPU with K10Temp support (for AMD CPU power monitoring)
 - NVIDIA GPU with NVML support (for GPU power monitoring)
+- AMD GPU with appropriate drivers (for AMD GPU power monitoring)
+- IPMI-capable system (for IPMI monitoring)
+- Redfish-compatible system (for Redfish monitoring)
+- Dell iDRAC (for iDRAC monitoring)
 
 ## Installation
 
@@ -75,17 +82,33 @@ The requirements files are structured as follows:
 ### Basic Power Monitoring
 
 ```python
-from src.power_profiling.monitors.cpu import CPUMonitor
-from src.power_profiling.monitors.gpu import GPUMonitor
+from power_profiling.monitors.cpu import IntelMonitor, AMDMonitor
+from power_profiling.monitors.gpu import NvidiaGPUMonitor, AMDGPUMonitor
+from power_profiling.monitors.system import IPMIMonitor, RedfishMonitor, IDRACMonitor
 import time
 
-# Initialize monitors
-cpu_monitor = CPUMonitor(sampling_interval=0.1)
-gpu_monitor = GPUMonitor(sampling_interval=0.1)
+# Initialize monitors based on your hardware
+# CPU monitoring
+cpu_monitor = IntelMonitor(sampling_interval=0.1)  # For Intel CPUs
+# Or
+# cpu_monitor = AMDMonitor(sampling_interval=0.1)  # For AMD CPUs
+
+# GPU monitoring
+gpu_monitor = NvidiaGPUMonitor(sampling_interval=0.1)  # For NVIDIA GPUs
+# Or
+# gpu_monitor = AMDGPUMonitor(sampling_interval=0.1)  # For AMD GPUs
+
+# System monitoring
+system_monitor = IPMIMonitor(sampling_interval=1.0)  # For IPMI-capable systems
+# Or
+# system_monitor = RedfishMonitor(sampling_interval=1.0)  # For Redfish-compatible systems
+# Or
+# system_monitor = IDRACMonitor(sampling_interval=1.0)  # For Dell iDRAC systems
 
 # Start monitoring
 cpu_monitor.start()
 gpu_monitor.start()
+system_monitor.start()
 
 # Run your workload
 time.sleep(5)  # Replace with your actual workload
@@ -93,13 +116,16 @@ time.sleep(5)  # Replace with your actual workload
 # Stop monitoring and get data
 cpu_data = cpu_monitor.stop()
 gpu_data = gpu_monitor.stop()
+system_data = system_monitor.stop()
 
 # Get statistics
 cpu_stats = cpu_monitor.get_statistics()
 gpu_stats = gpu_monitor.get_statistics()
+system_stats = system_monitor.get_statistics()
 
 print("CPU Statistics:", cpu_stats)
 print("GPU Statistics:", gpu_stats)
+print("System Statistics:", system_stats)
 ```
 
 ### Interactive Examples
@@ -141,9 +167,9 @@ jupyter notebook docs/examples/
 │   ├── power_profiling/        # Power monitoring tools
 │   │   ├── monitors/          # Power monitoring implementations
 │   │   │   ├── base.py       # Base power monitor class
-│   │   │   ├── cpu.py        # CPU power monitoring
-│   │   │   ├── gpu.py        # GPU power monitoring
-│   │   │   └── system.py     # System power monitoring
+│   │   │   ├── cpu.py        # CPU power monitoring (Intel/AMD)
+│   │   │   ├── gpu.py        # GPU power monitoring (NVIDIA/AMD)
+│   │   │   └── system.py     # System power monitoring (IPMI/Redfish/iDRAC)
 │   │   └── utils/            # Power monitoring utilities
 │   │       ├── data_collector.py
 │   │       └── config.py
@@ -168,7 +194,8 @@ jupyter notebook docs/examples/
 │   └── analysis/           # Analysis tools tests
 ├── scripts/                 # Utility scripts
 │   ├── run_benchmark.py    # Benchmark runner
-│   └── analyze_results.py  # Results analyzer
+│   ├── analyze_results.py  # Results analyzer
+│   └── test_imports.py    # Import test script
 ├── config/                 # Configuration files
 │   ├── benchmarks/        # Benchmark configurations
 │   │   ├── osu_config.json  # OSU Micro-benchmarks settings
@@ -200,19 +227,26 @@ jupyter notebook docs/examples/
 
 The CPU monitor supports both Intel and AMD processors:
 
-- Intel: Uses RAPL (Running Average Power Limit) interface
-- AMD: Uses K10Temp interface
-- Fallback: Uses CPU frequency as a proxy for power consumption
+- **IntelMonitor**: Uses RAPL (Running Average Power Limit) interface for Intel CPUs
+- **AMDMonitor**: Uses K10Temp interface for AMD CPUs
+- Both inherit from the base **CPUMonitor** class
 
 ### GPU Monitoring
 
-The GPU monitor uses NVIDIA's NVML library to collect:
+The GPU monitor supports both NVIDIA and AMD GPUs:
 
-- Power consumption
-- GPU utilization
-- Memory utilization
-- Temperature
-- Additional metadata
+- **NvidiaGPUMonitor**: Uses NVIDIA's NVML library to collect power consumption, utilization, memory usage, temperature, and clock speeds
+- **AMDGPUMonitor**: Uses AMD's sysfs interface to collect power consumption, temperature, and fan speed
+- Both inherit from the base **GPUMonitor** class
+
+### System Monitoring
+
+The system monitor supports multiple protocols:
+
+- **IPMIMonitor**: Uses IPMI protocol for system power monitoring
+- **RedfishMonitor**: Uses Redfish API for system power monitoring
+- **IDRACMonitor**: Extends RedfishMonitor specifically for Dell iDRAC systems
+- All inherit from the base **SystemMonitor** class
 
 ### Power Reading Data Structure
 

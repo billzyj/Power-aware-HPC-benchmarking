@@ -7,6 +7,7 @@ import logging
 import subprocess
 import json
 from typing import Optional, Dict, Any, List
+from datetime import datetime
 from .base import BasePowerMonitor, PowerReading
 
 try:
@@ -16,67 +17,47 @@ except ImportError:
     NVML_AVAILABLE = False
 
 class GPUMonitor(BasePowerMonitor):
-    """Monitor GPU power consumption using NVIDIA Management Library."""
-
+    """Base class for GPU power monitoring."""
+    
     def __init__(self, sampling_interval: float = 1.0, device_index: int = 0):
         """Initialize the GPU monitor.
         
         Args:
             sampling_interval: Time between readings in seconds
             device_index: Index of the GPU to monitor
-        
-        Raises:
-            ImportError: If pynvml is not available
-            RuntimeError: If no NVIDIA GPU is found
         """
         super().__init__(sampling_interval)
-        
-        if not NVML_AVAILABLE:
-            raise ImportError("pynvml not installed. Install it with: pip install pynvml")
-        
-        try:
-            pynvml.nvmlInit()
-            self.device_count = pynvml.nvmlDeviceGetCount()
-            if device_index >= self.device_count:
-                raise RuntimeError(f"GPU index {device_index} out of range. Found {self.device_count} GPUs.")
-            
-            self.device = pynvml.nvmlDeviceGetHandleByIndex(device_index)
-            self.device_name = pynvml.nvmlDeviceGetName(self.device).decode()
-            self.logger.info(f"Monitoring GPU: {self.device_name}")
-            
-        except pynvml.NVMLError as e:
-            raise RuntimeError(f"Failed to initialize NVIDIA GPU monitoring: {e}")
-        
+        self.device_index = device_index
+        self.logger = logging.getLogger(__name__)
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
+    def _read_power(self) -> Optional[float]:
+        """Read current GPU power (to be implemented by subclasses)."""
+        raise NotImplementedError("GPUMonitor is abstract. Use a concrete subclass like NvidiaGPUMonitor or AMDGPUMonitor.")
+
+    def _get_metadata(self) -> Dict[str, Any]:
+        """Get metadata about the current reading."""
+        return {
+            'monitor_type': 'abstract_gpu',
+            'sampling_interval': self.sampling_interval,
+            'device_index': self.device_index
+        }
+    
     def _collect_readings(self) -> None:
         """Collect GPU power readings in a separate thread."""
         while not self._stop_event.is_set():
             try:
-                # Get power usage in milliwatts
-                power = pynvml.nvmlDeviceGetPowerUsage(self.device) / 1000.0  # Convert to watts
-                
-                # Get additional GPU metrics
-                utilization = pynvml.nvmlDeviceGetUtilizationRates(self.device)
-                memory = pynvml.nvmlDeviceGetMemoryInfo(self.device)
-                temperature = pynvml.nvmlDeviceGetTemperature(
-                    self.device, pynvml.NVML_TEMPERATURE_GPU)
+                power = self._read_power()
                 
                 reading = PowerReading(
                     timestamp=datetime.now(),
                     power_watts=power,
-                    metadata={
-                        'gpu_util': utilization.gpu,
-                        'memory_util': utilization.memory,
-                        'memory_used': memory.used,
-                        'memory_total': memory.total,
-                        'temperature': temperature
-                    }
+                    metadata=self._get_metadata()
                 )
                 self.readings.append(reading)
                 
-            except pynvml.NVMLError as e:
+            except Exception as e:
                 self.logger.error(f"Error collecting GPU reading: {e}")
                 
             time.sleep(self.sampling_interval)
@@ -103,13 +84,85 @@ class GPUMonitor(BasePowerMonitor):
             self._thread.join()
             self.logger.info("GPU monitoring stopped")
             
-        try:
-            pynvml.nvmlShutdown()
-        except pynvml.NVMLError as e:
-            self.logger.warning(f"Error shutting down NVML: {e}")
-            
         return self.readings
 
+class NvidiaGPUMonitor(GPUMonitor):
+    """Monitor NVIDIA GPU power consumption using NVIDIA Management Library."""
+
+    def __init__(self, sampling_interval: float = 1.0, device_index: int = 0):
+        """Initialize the NVIDIA GPU monitor.
+        
+        Args:
+            sampling_interval: Time between readings in seconds
+            device_index: Index of the GPU to monitor
+        
+        Raises:
+            ImportError: If pynvml is not available
+            RuntimeError: If no NVIDIA GPU is found
+        """
+        super().__init__(sampling_interval, device_index)
+        
+        if not NVML_AVAILABLE:
+            raise ImportError("pynvml not installed. Install it with: pip install nvidia-ml-py3")
+        
+        try:
+            pynvml.nvmlInit()
+            self.device_count = pynvml.nvmlDeviceGetCount()
+            if device_index >= self.device_count:
+                raise RuntimeError(f"GPU index {device_index} out of range. Found {self.device_count} GPUs.")
+            
+            self.device = pynvml.nvmlDeviceGetHandleByIndex(device_index)
+            self.device_name = pynvml.nvmlDeviceGetName(self.device).decode()
+            self.logger.info(f"Monitoring NVIDIA GPU: {self.device_name}")
+            
+        except pynvml.NVMLError as e:
+            raise RuntimeError(f"Failed to initialize NVIDIA GPU monitoring: {e}")
+
+    def _read_power(self) -> Optional[float]:
+        """Read current GPU power using NVML."""
+        try:
+            power = pynvml.nvmlDeviceGetPowerUsage(self.device) / 1000.0  # Convert to watts
+            return power
+        except pynvml.NVMLError as e:
+            self.logger.error(f"Error reading GPU power: {e}")
+            return None
+
+    def _get_metadata(self) -> Dict[str, Any]:
+        """Get metadata about the current reading"""
+        metadata = {
+            'monitor_type': 'nvidia_gpu',
+            'sampling_interval': self.sampling_interval,
+            'device_index': self.device_index,
+            'device_name': self.device_name
+        }
+        
+        # Add GPU-specific metadata
+        try:
+            # Get utilization rates
+            util = pynvml.nvmlDeviceGetUtilizationRates(self.device)
+            metadata['gpu_util'] = util.gpu
+            metadata['memory_util'] = util.memory
+            
+            # Get memory info
+            memory = pynvml.nvmlDeviceGetMemoryInfo(self.device)
+            metadata['memory_used'] = memory.used
+            metadata['memory_total'] = memory.total
+            
+            # Get temperature
+            metadata['temperature'] = pynvml.nvmlDeviceGetTemperature(
+                self.device, pynvml.NVML_TEMPERATURE_GPU)
+            
+            # Get clock info
+            metadata['sm_clock'] = pynvml.nvmlDeviceGetClockInfo(
+                self.device, pynvml.NVML_CLOCK_SM)
+            metadata['mem_clock'] = pynvml.nvmlDeviceGetClockInfo(
+                self.device, pynvml.NVML_CLOCK_MEM)
+            
+        except pynvml.NVMLError as e:
+            self.logger.error(f"Error getting GPU metadata: {e}")
+            
+        return metadata
+    
     def __del__(self):
         """Cleanup NVML on object destruction."""
         try:
@@ -117,35 +170,88 @@ class GPUMonitor(BasePowerMonitor):
         except:
             pass
 
+class AMDGPUMonitor(GPUMonitor):
+    """Monitor AMD GPU power consumption using AMD's monitoring interface."""
+    
+    def __init__(self, sampling_interval: float = 1.0, device_index: int = 0):
+        """Initialize the AMD GPU monitor.
+        
+        Args:
+            sampling_interval: Time between readings in seconds
+            device_index: Index of the GPU to monitor
+        
+        Raises:
+            RuntimeError: If no AMD GPU is found or if monitoring interface is not available
+        """
+        super().__init__(sampling_interval, device_index)
+        
+        # Check for AMD GPU monitoring interface
+        self.amd_path = self._find_amd_gpu_path()
+        if not self.amd_path:
+            raise RuntimeError("AMD GPU monitoring interface not found. Ensure your GPU supports AMD power monitoring.")
+        
+        self.logger.info(f"Monitoring AMD GPU at index {device_index}")
+    
+    def _find_amd_gpu_path(self) -> Optional[str]:
+        """Find the path to AMD GPU monitoring interface."""
+        # Common paths for AMD GPU monitoring
+        possible_paths = [
+            '/sys/class/hwmon/hwmon0',  # Common path for AMD GPUs
+            '/sys/class/hwmon/hwmon1',
+            '/sys/class/hwmon/hwmon2'
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                try:
+                    # Check if this is an AMD GPU
+                    with open(os.path.join(path, 'name'), 'r') as f:
+                        if 'amdgpu' in f.read().lower():
+                            return path
+                except (IOError, ValueError):
+                    continue
+        
+        return None
+    
+    def _read_power(self) -> Optional[float]:
+        """Read current GPU power using AMD's monitoring interface."""
+        try:
+            # Read power from AMD GPU
+            power_path = os.path.join(self.amd_path, 'power1_input')
+            with open(power_path, 'r') as f:
+                power = int(f.read().strip())
+            return power / 1e6  # Convert microwatts to watts
+        except (IOError, ValueError) as e:
+            self.logger.error(f"Error reading AMD GPU power: {e}")
+            return None
+    
     def _get_metadata(self) -> Dict[str, Any]:
         """Get metadata about the current reading"""
         metadata = {
-            'monitor_type': 'nvidia_gpu',
+            'monitor_type': 'amd_gpu',
             'sampling_interval': self.sampling_interval,
             'device_index': self.device_index
         }
         
         # Add GPU-specific metadata
         try:
-            result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=index,name,memory.total,driver_version", "--format=csv,noheader"],
-                capture_output=True, text=True, check=True
-            )
+            # Get GPU name
+            with open(os.path.join(self.amd_path, 'name'), 'r') as f:
+                metadata['device_name'] = f.read().strip()
             
-            gpu_info = {}
-            for line in result.stdout.splitlines():
-                gpu_id, name, memory, driver = line.strip().split(", ")
-                gpu_id = int(gpu_id)
-                if gpu_id == self.device_index:
-                    gpu_info[f"gpu_{gpu_id}"] = {
-                        "name": name,
-                        "memory": memory,
-                        "driver": driver
-                    }
+            # Get temperature if available
+            temp_path = os.path.join(self.amd_path, 'temp1_input')
+            if os.path.exists(temp_path):
+                with open(temp_path, 'r') as f:
+                    metadata['temperature'] = int(f.read().strip()) / 1000.0  # Convert millidegree to degree
             
-            metadata["gpu_info"] = gpu_info
+            # Get fan speed if available
+            fan_path = os.path.join(self.amd_path, 'fan1_input')
+            if os.path.exists(fan_path):
+                with open(fan_path, 'r') as f:
+                    metadata['fan_speed'] = int(f.read().strip())
             
-        except (subprocess.SubprocessError, ValueError) as e:
-            self.logger.error(f"Error getting GPU metadata: {e}")
+        except (IOError, ValueError) as e:
+            self.logger.error(f"Error getting AMD GPU metadata: {e}")
             
         return metadata 

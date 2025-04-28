@@ -2,8 +2,22 @@
 Power profiling module for HPC benchmarking.
 """
 
-from .monitors.cpu import CPUMonitor
-from .monitors.gpu import GPUMonitor
-from .monitors.system import SystemMonitor
+# CPU monitors
+from .monitors.cpu import CPUMonitor, IntelMonitor, AMDMonitor
 
-__all__ = ['CPUMonitor', 'GPUMonitor', 'SystemMonitor'] 
+# GPU monitors
+from .monitors.gpu import GPUMonitor, NvidiaGPUMonitor, AMDGPUMonitor
+
+# System monitors
+from .monitors.system import SystemMonitor, IPMIMonitor, RedfishMonitor, IDRACMonitor
+
+__all__ = [
+    # CPU monitors
+    'CPUMonitor', 'IntelMonitor', 'AMDMonitor',
+    
+    # GPU monitors
+    'GPUMonitor', 'NvidiaGPUMonitor', 'AMDGPUMonitor',
+    
+    # System monitors
+    'SystemMonitor', 'IPMIMonitor', 'RedfishMonitor', 'IDRACMonitor'
+] 
