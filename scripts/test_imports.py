@@ -17,48 +17,48 @@ def test_imports():
     
     # Test CPU monitors
     try:
-        from power_monitoring.cpu.intel import IntelMonitor
+        from power_profiling.monitors.cpu import IntelMonitor
         print("✓ Successfully imported IntelMonitor")
     except ImportError as e:
         print(f"✗ Failed to import IntelMonitor: {e}")
     
     try:
-        from power_monitoring.cpu.amd import AMDMonitor
+        from power_profiling.monitors.cpu import AMDMonitor
         print("✓ Successfully imported AMDMonitor")
     except ImportError as e:
         print(f"✗ Failed to import AMDMonitor: {e}")
     
     # Test GPU monitors
     try:
-        from power_monitoring.gpu.nvidia import NvidiaGPUMonitor
+        from power_profiling.monitors.gpu import NvidiaGPUMonitor
         print("✓ Successfully imported NvidiaGPUMonitor")
     except ImportError as e:
         print(f"✗ Failed to import NvidiaGPUMonitor: {e}")
     
     try:
-        from power_monitoring.gpu.amd import AMDGPUMonitor
+        from power_profiling.monitors.gpu import AMDGPUMonitor
         print("✓ Successfully imported AMDGPUMonitor")
     except ImportError as e:
         print(f"✗ Failed to import AMDGPUMonitor: {e}")
     
     # Test system monitors
     try:
-        from power_monitoring.system.ipmi import IPMIMonitor
+        from power_profiling.monitors.system import IPMIMonitor
         print("✓ Successfully imported IPMIMonitor")
     except ImportError as e:
         print(f"✗ Failed to import IPMIMonitor: {e}")
     
     try:
-        from power_monitoring.system.redfish import RedfishMonitor
+        from power_profiling.monitors.system import RedfishMonitor
         print("✓ Successfully imported RedfishMonitor")
     except ImportError as e:
         print(f"✗ Failed to import RedfishMonitor: {e}")
     
     try:
-        from power_monitoring.system.idrac import IDRACMonitor
+        from power_profiling.monitors.system import IDRACMonitor
         print("✓ Successfully imported IDRACMonitor")
     except ImportError as e:
         print(f"✗ Failed to import IDRACMonitor: {e}")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_imports() 

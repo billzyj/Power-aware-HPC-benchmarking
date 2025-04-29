@@ -12,6 +12,7 @@ psutil>=5.8.0  # CPU monitoring
 pynvml>=11.0.0  # NVIDIA GPU monitoring 
 nvidia-ml-py3>=7.352.0  # NVIDIA GPU monitoring 
 pyipmi>=0.11.0
+python-redfish-client>=1.0.0  # Redfish API client
 
 # Optional dependencies
 # Uncomment if needed

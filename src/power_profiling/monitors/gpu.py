@@ -112,7 +112,8 @@ class NvidiaGPUMonitor(GPUMonitor):
                 raise RuntimeError(f"GPU index {device_index} out of range. Found {self.device_count} GPUs.")
             
             self.device = pynvml.nvmlDeviceGetHandleByIndex(device_index)
-            self.device_name = pynvml.nvmlDeviceGetName(self.device).decode()
+            device_name_bytes = pynvml.nvmlDeviceGetName(self.device)
+            self.device_name = device_name_bytes.decode() if isinstance(device_name_bytes, bytes) else device_name_bytes
             self.logger.info(f"Monitoring NVIDIA GPU: {self.device_name}")
             
         except pynvml.NVMLError as e:

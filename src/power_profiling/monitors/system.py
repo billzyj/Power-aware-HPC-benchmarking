@@ -23,6 +23,7 @@ except ImportError:
 try:
     import urllib3
     from requests.auth import HTTPBasicAuth
+    from redfish import RedfishClient
     REDFISH_AVAILABLE = True
 except ImportError:
     REDFISH_AVAILABLE = False
@@ -212,7 +213,7 @@ class RedfishMonitor(SystemMonitor):
         super().__init__(sampling_interval)
         
         if not REDFISH_AVAILABLE:
-            raise ImportError("requests not installed. Install it with: pip install requests")
+            raise ImportError("python-redfish-client not installed. Install it with: pip install python-redfish-client")
         
         self.host = host or os.environ.get('REDFISH_HOST')
         self.username = username or os.environ.get('REDFISH_USERNAME')
@@ -224,13 +225,14 @@ class RedfishMonitor(SystemMonitor):
             raise ValueError("Redfish credentials not provided. Set REDFISH_HOST, REDFISH_USERNAME, and REDFISH_PASSWORD environment variables.")
         
         # Initialize Redfish client
-        self.base_url = f"https://{self.host}/redfish/v1"
-        self.auth = HTTPBasicAuth(self.username, self.password)
-        self.session = requests.Session()
-        self.session.headers.update({
-            'Connection': 'keep-alive',
-            'Accept': 'application/json'
-        })
+        self.base_url = f"https://{self.host}"
+        self.redfish_client = RedfishClient(
+            base_url=self.base_url,
+            username=self.username,
+            password=self.password,
+            default_prefix="/redfish/v1",
+            verify_cert=self.verify_ssl
+        )
         
         # Cache for power URIs
         self._power_uri_cache = {}
@@ -242,55 +244,36 @@ class RedfishMonitor(SystemMonitor):
         except Exception as e:
             raise RuntimeError(f"Failed to connect to Redfish API: {e}")
     
-    def _request(self, method, path, **kwargs):
-        """Make a request to the Redfish API."""
-        url = f"{self.base_url}{path}"
-        
-        kwargs.setdefault('auth', self.auth)
-        kwargs.setdefault('verify', self.verify_ssl)
-        kwargs.setdefault('timeout', 5)
-        
-        try:
-            response = self.session.request(method, url, **kwargs)
-            response.raise_for_status()
-            return response.json() if response.content else None
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Error in Redfish API request: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                self.logger.error(f"Response status code: {e.response.status_code}")
-                try:
-                    error_data = e.response.json()
-                    self.logger.error(f"Error details: {json.dumps(error_data, indent=2)}")
-                except:
-                    self.logger.error(f"Response text: {e.response.text}")
-            return None
-    
     def _get_power_uri(self):
         """Get the power URI for a system (with caching)."""
         if self.system_id in self._power_uri_cache:
             return self._power_uri_cache[self.system_id]
         
-        system = self._request('GET', self.system_id)
-        if not system:
-            raise Exception(f"Failed to get system information for {self.system_id}")
-        
-        power_uri = system.get('Power', {}).get('@odata.id')
-        
-        if not power_uri:
-            raise Exception(f"Power URI not found for system {self.system_id}")
-        
-        # Remove the base URL if present
-        power_uri = power_uri.replace(self.base_url, '')
-        
-        # Cache the result
-        self._power_uri_cache[self.system_id] = power_uri
-        return power_uri
+        try:
+            system = self.redfish_client.get(self.system_id)
+            if not system:
+                raise Exception(f"Failed to get system information for {self.system_id}")
+            
+            power_uri = system.get('Power', {}).get('@odata.id')
+            
+            if not power_uri:
+                raise Exception(f"Power URI not found for system {self.system_id}")
+            
+            # Remove the base URL if present
+            power_uri = power_uri.replace(self.base_url, '')
+            
+            # Cache the result
+            self._power_uri_cache[self.system_id] = power_uri
+            return power_uri
+        except Exception as e:
+            self.logger.error(f"Error getting power URI: {e}")
+            raise
     
     def _read_power(self) -> Optional[float]:
         """Read system power using Redfish API."""
         try:
             power_uri = self._get_power_uri()
-            power_data = self._request('GET', power_uri)
+            power_data = self.redfish_client.get(power_uri)
             
             if not power_data:
                 return None
@@ -323,7 +306,7 @@ class RedfishMonitor(SystemMonitor):
         try:
             # Get power supplies
             power_uri = self._get_power_uri()
-            power_data = self._request('GET', power_uri)
+            power_data = self.redfish_client.get(power_uri)
             
             if power_data and 'PowerSupplies' in power_data:
                 power_supplies = []
@@ -345,8 +328,8 @@ class RedfishMonitor(SystemMonitor):
     def __del__(self):
         """Cleanup Redfish session."""
         try:
-            if hasattr(self, 'session'):
-                self.session.close()
+            if hasattr(self, 'redfish_client'):
+                self.redfish_client.logout()
         except:
             pass
 
@@ -375,7 +358,7 @@ class IDRACMonitor(RedfishMonitor):
         # Add iDRAC-specific metadata
         try:
             # Get iDRAC firmware version
-            chassis = self._request('GET', '/Chassis/System.Embedded.1')
+            chassis = self.redfish_client.get('/Chassis/System.Embedded.1')
             if chassis and 'Oem' in chassis and 'Dell' in chassis['Oem']:
                 metadata['idrac_firmware'] = chassis['Oem']['Dell'].get('FirmwareVersion')
         except Exception as e:

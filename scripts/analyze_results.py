@@ -12,6 +12,7 @@ import seaborn as sns
 from pathlib import Path
 import numpy as np
 import glob
+from datetime import datetime
 
 def load_power_data(data_file):
     """Load power monitoring data from JSON file"""
@@ -20,25 +21,38 @@ def load_power_data(data_file):
 
 def process_osu_results(result_file):
     """Process OSU benchmark results"""
-    with open(result_file, 'r') as f:
-        lines = f.readlines()
-    
-    # Extract performance data
-    data = []
-    for line in lines:
-        if line.strip() and not line.startswith('#'):
-            try:
-                size, latency, bandwidth = map(float, line.strip().split())
-                data.append({
-                    'size': size,
-                    'latency': latency,
-                    'bandwidth': bandwidth
-                })
-            except ValueError:
-                # Skip lines that don't match the expected format
-                continue
-    
-    return pd.DataFrame(data)
+    try:
+        with open(result_file, 'r') as f:
+            lines = f.readlines()
+        
+        # Check if file is empty
+        if not lines:
+            print(f"Warning: {result_file} is empty")
+            return pd.DataFrame(columns=['size', 'latency', 'bandwidth'])
+        
+        # Extract performance data
+        data = []
+        for line in lines:
+            if line.strip() and not line.startswith('#'):
+                try:
+                    size, latency, bandwidth = map(float, line.strip().split())
+                    data.append({
+                        'size': size,
+                        'latency': latency,
+                        'bandwidth': bandwidth
+                    })
+                except ValueError:
+                    # Skip lines that don't match the expected format
+                    continue
+        
+        if not data:
+            print(f"Warning: No valid data found in {result_file}")
+            return pd.DataFrame(columns=['size', 'latency', 'bandwidth'])
+            
+        return pd.DataFrame(data)
+    except Exception as e:
+        print(f"Error processing {result_file}: {e}")
+        return pd.DataFrame(columns=['size', 'latency', 'bandwidth'])
 
 def process_hpl_results(result_file):
     """Process HPL benchmark results"""
@@ -75,35 +89,39 @@ def create_power_plot(power_data, output_file):
     """Create power consumption plot"""
     plt.figure(figsize=(12, 6))
     
-    # Plot CPU power
-    if 'cpu_power' in power_data:
-        if isinstance(power_data['cpu_power'], list):
-            plt.plot(power_data['cpu_power'], label='CPU Power')
-        else:
-            # Handle the case where cpu_power is a dictionary with timestamps
-            timestamps = list(power_data['cpu_power'].keys())
-            values = [power_data['cpu_power'][ts] for ts in timestamps]
-            plt.plot(timestamps, values, label='CPU Power')
+    # Extract timestamps and power values for each component
+    cpu_timestamps = []
+    gpu_timestamps = []
+    system_timestamps = []
+    cpu_power = []
+    gpu_power = []
+    system_power = []
     
-    # Plot GPU power
-    if 'gpu_power' in power_data:
-        if isinstance(power_data['gpu_power'], list):
-            plt.plot(power_data['gpu_power'], label='GPU Power')
-        else:
-            # Handle the case where gpu_power is a dictionary with timestamps
-            timestamps = list(power_data['gpu_power'].keys())
-            values = [power_data['gpu_power'][ts] for ts in timestamps]
-            plt.plot(timestamps, values, label='GPU Power')
+    # Process CPU power data
+    if 'cpu_power' in power_data and power_data['cpu_power']:
+        for reading in power_data['cpu_power']:
+            cpu_timestamps.append(datetime.fromisoformat(reading['timestamp']))
+            cpu_power.append(reading['power_watts'])
     
-    # Plot system power
-    if 'system_power' in power_data:
-        if isinstance(power_data['system_power'], list):
-            plt.plot(power_data['system_power'], label='System Power')
-        else:
-            # Handle the case where system_power is a dictionary with timestamps
-            timestamps = list(power_data['system_power'].keys())
-            values = [power_data['system_power'][ts] for ts in timestamps]
-            plt.plot(timestamps, values, label='System Power')
+    # Process GPU power data
+    if 'gpu_power' in power_data and power_data['gpu_power']:
+        for reading in power_data['gpu_power']:
+            gpu_timestamps.append(datetime.fromisoformat(reading['timestamp']))
+            gpu_power.append(reading['power_watts'])
+    
+    # Process system power data
+    if 'system_power' in power_data and power_data['system_power']:
+        for reading in power_data['system_power']:
+            system_timestamps.append(datetime.fromisoformat(reading['timestamp']))
+            system_power.append(reading['power_watts'])
+    
+    # Plot each component with its own timestamps
+    if cpu_power:
+        plt.plot(cpu_timestamps, cpu_power, label='CPU Power')
+    if gpu_power:
+        plt.plot(gpu_timestamps, gpu_power, label='GPU Power')
+    if system_power:
+        plt.plot(system_timestamps, system_power, label='System Power')
     
     plt.xlabel('Time')
     plt.ylabel('Power (Watts)')
@@ -111,31 +129,47 @@ def create_power_plot(power_data, output_file):
     plt.legend()
     plt.grid(True)
     
+    # Rotate x-axis labels for better readability
+    plt.xticks(rotation=45)
+    
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    # Save the plot
     plt.savefig(output_file)
     plt.close()
 
 def create_performance_plot(osu_data, output_file):
-    """Create OSU benchmark performance plot"""
-    plt.figure(figsize=(12, 6))
+    """Create performance plot for OSU benchmark results"""
+    # Check if dataframe is empty
+    if osu_data.empty:
+        print(f"Warning: No data to plot for {output_file}")
+        # Create an empty plot with a message
+        plt.figure(figsize=(10, 6))
+        plt.text(0.5, 0.5, "No data available", 
+                 horizontalalignment='center', verticalalignment='center',
+                 transform=plt.gca().transAxes, fontsize=14)
+        plt.title('OSU Benchmark Performance')
+        plt.savefig(output_file)
+        plt.close()
+        return
+        
+    plt.figure(figsize=(10, 6))
     
     # Plot latency
     plt.subplot(1, 2, 1)
-    plt.plot(osu_data['size'], osu_data['latency'], 'b-')
-    plt.xscale('log')
-    plt.yscale('log')
+    plt.semilogx(osu_data['size'], osu_data['latency'], 'o-')
     plt.xlabel('Message Size (bytes)')
     plt.ylabel('Latency (us)')
-    plt.title('Latency vs Message Size')
+    plt.title('Latency')
     plt.grid(True)
     
     # Plot bandwidth
     plt.subplot(1, 2, 2)
-    plt.plot(osu_data['size'], osu_data['bandwidth'], 'r-')
-    plt.xscale('log')
-    plt.yscale('log')
+    plt.semilogx(osu_data['size'], osu_data['bandwidth'], 'o-')
     plt.xlabel('Message Size (bytes)')
     plt.ylabel('Bandwidth (MB/s)')
-    plt.title('Bandwidth vs Message Size')
+    plt.title('Bandwidth')
     plt.grid(True)
     
     plt.tight_layout()

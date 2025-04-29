@@ -26,35 +26,61 @@ class BenchmarkRunner:
         
         # Initialize power monitors based on hardware
         # You can modify these based on your system
-        self.cpu_monitor = IntelMonitor()  # or AMDMonitor() for AMD CPUs
-        self.gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() for AMD GPUs
-        self.system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor()
+        try:
+            self.cpu_monitor = IntelMonitor()  # or AMDMonitor() for AMD CPUs
+        except Exception as e:
+            print(f"Warning: Failed to initialize CPU monitor: {e}")
+            self.cpu_monitor = None
+            
+        try:
+            self.gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() for AMD GPUs
+        except Exception as e:
+            print(f"Warning: Failed to initialize GPU monitor: {e}")
+            self.gpu_monitor = None
+            
+        try:
+            self.system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor()
+        except Exception as e:
+            print(f"Warning: Failed to initialize system monitor: {e}")
+            self.system_monitor = None
         
         # Create timestamp for this run
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
     def start_monitoring(self):
         """Start all power monitoring processes"""
-        self.cpu_monitor.start()
-        self.gpu_monitor.start()
-        self.system_monitor.start()
+        if self.cpu_monitor:
+            self.cpu_monitor.start()
+        if self.gpu_monitor:
+            self.gpu_monitor.start()
+        if self.system_monitor:
+            self.system_monitor.start()
         
     def stop_monitoring(self):
         """Stop all power monitoring processes and save data"""
-        cpu_data = self.cpu_monitor.stop()
-        gpu_data = self.gpu_monitor.stop()
-        system_data = self.system_monitor.stop()
+        cpu_data = self.cpu_monitor.stop() if self.cpu_monitor else None
+        gpu_data = self.gpu_monitor.stop() if self.gpu_monitor else None
+        system_data = self.system_monitor.stop() if self.system_monitor else None
         
         # Save monitoring data
         self.save_monitoring_data(cpu_data, gpu_data, system_data)
         
     def save_monitoring_data(self, cpu_data, gpu_data, system_data):
         """Save monitoring data to files"""
+        def serialize_readings(readings):
+            if readings is None:
+                return None
+            return [{
+                'timestamp': reading.timestamp.isoformat(),
+                'power_watts': reading.power_watts,
+                'metadata': reading.metadata
+            } for reading in readings]
+            
         data = {
             'timestamp': self.timestamp,
-            'cpu_power': cpu_data,
-            'gpu_power': gpu_data,
-            'system_power': system_data
+            'cpu_power': serialize_readings(cpu_data),
+            'gpu_power': serialize_readings(gpu_data),
+            'system_power': serialize_readings(system_data)
         }
         
         output_file = self.output_dir / f'power_data_{self.timestamp}.json'
@@ -70,7 +96,8 @@ class BenchmarkRunner:
         
         try:
             # Run the OSU benchmark using the build directory
-            cmd = f"mpirun -np 2 ./benchmarks/micro/osu/build/osu_{test_name}"
+            cmd = f"mpirun --allow-run-as-root -np 2 ./src/benchmarks/micro/osu/build/c/mpi/pt2pt/standard/osu_{test_name}"
+            print(f"Running command: {cmd}")
             process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
             # Wait for the specified duration
@@ -79,6 +106,8 @@ class BenchmarkRunner:
             
             # Capture output
             stdout, stderr = process.communicate()
+            if stderr:
+                print(f"Benchmark stderr: {stderr.decode()}")
             
             # Save benchmark results
             with open(self.output_dir / f'osu_{test_name}_{self.timestamp}.txt', 'w') as f:
