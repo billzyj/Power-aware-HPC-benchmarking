@@ -6,69 +6,101 @@ This guide provides solutions to common issues you might encounter when using th
 
 ### 1. "BLAS not found" Error
 
-**Problem**: When building HPL, you encounter the "BLAS not found" error.
+**Problem**: When building HPL, you encounter the "BLAS not found" error even when OpenBLAS is installed and LD_LIBRARY_PATH is set.
 
 **Solution**:
-1. Install OpenBLAS from source:
+1. Create a library configuration file for OpenBLAS:
    ```bash
-   # Install build dependencies
-   yum groupinstall "Development Tools"
-   yum install cmake gcc gcc-c++ gcc-gfortran
-   
-   # Clone and build OpenBLAS
-   git clone https://github.com/xianyi/OpenBLAS.git
-   cd OpenBLAS
-   make
-   make install
+   # Create ld.so.conf.d file for OpenBLAS
+   echo "/opt/OpenBLAS/lib" > /etc/ld.so.conf.d/openblas.conf
+
+   # Update the library cache
+   ldconfig
+
+   # Create necessary symlinks
+   ln -sf /opt/OpenBLAS/lib/libopenblas.so.0 /usr/lib64/libopenblas.so
+   ln -sf /opt/OpenBLAS/lib/libopenblas.so.0 /usr/lib64/libblas.so
    ```
 
-2. Set environment variables for OpenBLAS:
+2. Set environment variables:
    ```bash
-   export LD_LIBRARY_PATH=/opt/OpenBLAS/lib:$LD_LIBRARY_PATH
-   export LIBRARY_PATH=/opt/OpenBLAS/lib:$LIBRARY_PATH
-   export CPATH=/opt/OpenBLAS/include:$CPATH
+   export BLAS_LIBS="-L/opt/OpenBLAS/lib -lopenblas"
+   export LDFLAGS="-L/opt/OpenBLAS/lib"
+   export CPPFLAGS="-I/opt/OpenBLAS/include"
+   export LD_LIBRARY_PATH="/opt/OpenBLAS/lib:$LD_LIBRARY_PATH"
    ```
 
-3. Configure HPL with the correct compiler and BLAS library:
+3. Clean and reconfigure HPL:
    ```bash
-   # Set MPI compilers
-   export CC=mpicc
-   export CXX=mpicxx
-   export FC=mpif90
-   export F77=mpif77
-   
-   # Configure HPL
-   ./configure --with-blas=/opt/OpenBLAS/lib/libopenblas.so
+   make clean
+   ../configure --with-blas="/opt/OpenBLAS/lib/libopenblas.so" \
+               --with-blas-lib-dirs="/opt/OpenBLAS/lib" \
+               --with-blas-lib="openblas" \
+               --with-mpi-dir=/usr/lib64/openmpi
    ```
 
-### 2. Package Manager Issues
+**Why this works**:
+- The ld.so.conf.d file tells the system where to find the OpenBLAS libraries
+- ldconfig updates the shared library cache
+- The symlinks make the libraries discoverable by the HPL configure script
+- The environment variables ensure the compiler can find the libraries during build
 
-**Problem**: Segmentation faults or errors when using package managers (dnf, yum, apt).
+### 2. Permission Errors
+
+**Problem**: Encounter permission errors during installation or execution.
 
 **Solution**:
-1. Try building dependencies from source
-2. Clear package manager cache:
-   ```bash
-   # For dnf
-   dnf clean all
-   
-   # For yum
-   yum clean all
-   
-   # For apt
-   apt-get clean
-   ```
-3. Update package manager:
-   ```bash
-   # For dnf
-   dnf update
-   
-   # For yum
-   yum update
-   
-   # For apt
-   apt-get update
-   ```
+```bash
+# If you encounter permission errors, try:
+chmod -R 755 /path/to/project
+```
+
+### 3. Missing Dependencies
+
+**Problem**: Missing required system dependencies.
+
+**Solution**:
+```bash
+# On Ubuntu/Debian:
+apt-get install python3-dev libmpich-dev
+
+# On CentOS/RHEL:
+yum install python3-devel mpich-devel
+```
+
+### 4. CUDA Installation Issues
+
+**Problem**: CUDA not found or not properly configured.
+
+**Solution**:
+```bash
+# Verify CUDA installation:
+nvidia-smi
+
+# If CUDA is not found, install it:
+# Ubuntu/Debian:
+apt-get install nvidia-cuda-toolkit
+
+# CentOS/RHEL:
+yum install cuda
+```
+
+### 5. MPI Issues
+
+**Problem**: MPI not found or not properly configured.
+
+**Solution**:
+```bash
+# Verify MPI installation:
+mpirun --version
+
+# If MPI is not found, install OpenMPI:
+# Ubuntu/Debian:
+apt-get install openmpi-bin libopenmpi-dev
+
+# CentOS/RHEL:
+yum install openmpi openmpi-devel
+```
 
 ## Power Monitoring Issues
 
@@ -181,6 +213,70 @@ This guide provides solutions to common issues you might encounter when using th
    gcc --version
    gfortran --version
    ```
+
+### 3. Automake Version Mismatch
+
+**Problem**: When building HPL, you encounter an automake version mismatch error:
+```
+configure.ac:13: error: version mismatch.  This is Automake 1.16.2,
+configure.ac:13: but the definition used by this AM_INIT_AUTOMAKE
+configure.ac:13: comes from Automake 1.16.1.
+```
+
+**Solution**:
+1. Downgrade automake to version 1.16.1:
+   ```bash
+   # First, check current version
+   automake --version
+   
+   # Remove current automake
+   dnf remove automake
+   
+   # Download and install automake 1.16.1
+   cd /tmp
+   wget https://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.xz
+   tar xf automake-1.16.1.tar.xz
+   cd automake-1.16.1
+   ./configure
+   make
+   make install
+   
+   # Verify the version
+   automake --version  # Should show 1.16.1
+   ```
+
+2. If you can't downgrade automake, regenerate the autotools files:
+   ```bash
+   # Clean the build directory
+   make clean
+   
+   # Regenerate autotools files
+   autoreconf -fiv
+   
+   # Reconfigure and build
+   ./configure
+   make
+   ```
+
+3. Alternative approach - use a specific automake version for this project only:
+   ```bash
+   # Download automake 1.16.1 without installing it system-wide
+   cd /tmp
+   wget https://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.xz
+   tar xf automake-1.16.1.tar.xz
+   cd automake-1.16.1
+   ./configure --prefix=/tmp/automake-1.16.1
+   make
+   make install
+   
+   # Return to HPL build directory and use the specific automake version
+   cd /path/to/hpl/build
+   make clean
+   PATH=/tmp/automake-1.16.1/bin:$PATH ../configure
+   make
+   ```
+
+**Note**: If you're using a package manager like dnf or apt, you might not be able to install a specific version directly. In that case, building from source as shown above is the recommended approach.
 
 ## Analysis Issues
 
