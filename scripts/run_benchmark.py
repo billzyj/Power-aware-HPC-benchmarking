@@ -117,56 +117,65 @@ class BenchmarkRunner:
             # Stop power monitoring
             self.stop_monitoring()
             
-    def run_hpl(self, problem_size, duration):
-        """Run HPL benchmark with power monitoring"""
-        print(f"Running HPL benchmark with problem size: {problem_size}")
+    def run_hpl(self, problem_size, duration, partition="zen4"):
+        """Run HPL benchmark with power monitoring
         
-        # Create HPL.dat file in the build directory
-        hpl_dat = f"""HPLinpack benchmark input file
-Innovative Computing Laboratory, University of Tennessee
-HPL.out      output file name (if any)
-6            device out (6=stdout,7=stderr,file)
-1            # of problems sizes (N)
-{problem_size}         Ns
-1            # of NBs
-128          NBs
-0            PMAP process mapping (0=Row-,1=Column-major)
-1            # of process grids (P x Q)
-2            Ps
-2            Qs
-16.0         threshold
-1            # of panel fact
-2            PFACTs (0=left, 1=Crout, 2=Right)
-1            # of recursive stopping criterium
-4            NBMINs (>= 1)
-1            # of panels in recursion
-2            NDIVs
-1            # of recursive panel fact.
-1            RFACTs (0=left, 1=Crout, 2=Right)
-1            # of broadcast
-1            BCASTs (0=1rg,1=1rM,2=2rg,3=2rM,4=Lng,5=LnM)
-1            # of lookahead depth
-1            DEPTHs (>=0)
-2            SWAP (0=bin-exch,1=long,2=mix)
-64           swapping threshold
-0            L1 in (0=transposed,1=no-transposed) form
-0            U  in (0=transposed,1=no-transposed) form
-1            Equilibration (0=no,1=yes)
-8            memory alignment in double (> 0)
-"""
+        Args:
+            problem_size: Problem size (N) for HPL
+            duration: Duration to run the benchmark in seconds
+            partition: Target partition ("zen4" or "h100")
+        """
+        print(f"Running HPL benchmark with problem size: {problem_size} on {partition} partition")
         
-        # Write HPL.dat file to the build directory
-        hpl_dat_path = Path('benchmarks/system/hpl/build/HPL.dat')
-        hpl_dat_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(hpl_dat_path, 'w') as f:
-            f.write(hpl_dat)
+        # Determine build directory and binary path based on partition
+        if partition == "zen4":
+            build_dir = Path('src/benchmarks/system/hpl/build-zen4')
+            binary_path = build_dir / 'bin/Linux_Intel64/xhpl'
+            hpl_dat_template = Path('src/benchmarks/system/hpl/HPL.dat.zen4')
+            # Default process count for Zen4 (can be overridden)
+            np = 256
+        elif partition == "h100":
+            build_dir = Path('src/benchmarks/system/hpl/build-h100')
+            binary_path = build_dir / 'bin/Linux_Intel64/xhpl'
+            hpl_dat_template = Path('src/benchmarks/system/hpl/HPL.dat.h100')
+            # Default process count for H100 (can be overridden)
+            np = 64
+        else:
+            raise ValueError(f"Unknown partition: {partition}. Use 'zen4' or 'h100'")
+        
+        # Check if build directory and binary exist
+        if not build_dir.exists():
+            print(f"Error: Build directory {build_dir} not found.")
+            print(f"Please run: cd src/benchmarks/system/hpl && ./build_{partition}.sh")
+            return
+        
+        if not binary_path.exists():
+            print(f"Error: HPL binary {binary_path} not found.")
+            print(f"Please run: cd src/benchmarks/system/hpl && ./build_{partition}.sh")
+            return
+        
+        # Copy HPL.dat template and customize problem size
+        hpl_dat_path = build_dir / 'HPL.dat'
+        if hpl_dat_template.exists():
+            with open(hpl_dat_template, 'r') as f:
+                hpl_dat_content = f.read()
+            
+            # Replace problem size if specified
+            if problem_size:
+                import re
+                hpl_dat_content = re.sub(r'^(\d+)\s+Ns', f'{problem_size}         Ns', hpl_dat_content, flags=re.MULTILINE)
+            
+            with open(hpl_dat_path, 'w') as f:
+                f.write(hpl_dat_content)
+        else:
+            print(f"Warning: HPL.dat template {hpl_dat_template} not found. Using default configuration.")
         
         # Start power monitoring
         self.start_monitoring()
         
         try:
-            # Run HPL using the build directory
-            cmd = f"mpirun -np 4 ./benchmarks/system/hpl/build/xhpl"
+            # Run HPL using the appropriate build directory
+            cmd = f"mpirun -np {np} {binary_path}"
             process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
             # Wait for the specified duration
@@ -191,6 +200,8 @@ def main():
     parser.add_argument('--test', help='OSU benchmark test name (for osu benchmark)')
     parser.add_argument('--size', type=int, help='Problem size for HPL')
     parser.add_argument('--duration', type=int, help='Duration to run the benchmark in seconds')
+    parser.add_argument('--partition', choices=['zen4', 'h100'], default='zen4',
+                      help='Target partition for HPL (zen4 or h100)')
     parser.add_argument('--output-dir', default='results/raw',
                       help='Directory to store results')
     
@@ -256,7 +267,7 @@ def main():
             parser.error("--size is required for HPL benchmark")
         if not args.duration:
             parser.error("--duration is required for HPL benchmark")
-        runner.run_hpl(args.size, args.duration)
+        runner.run_hpl(args.size, args.duration, args.partition)
 
 if __name__ == '__main__':
     main() 

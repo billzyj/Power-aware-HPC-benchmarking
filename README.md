@@ -204,8 +204,11 @@ This project integrates power monitoring with standard HPC benchmarks to measure
 # Run OSU latency test with power monitoring
 python scripts/run_benchmark.py --benchmark osu --test latency --duration 60
 
-# Run HPL with power monitoring
-python scripts/run_benchmark.py --benchmark hpl --size 1000 --duration 300
+# Run HPL with power monitoring on Zen4 partition
+python scripts/run_benchmark.py --benchmark hpl --size 4000 --duration 300 --partition zen4
+
+# Run HPL with power monitoring on H100 partition
+python scripts/run_benchmark.py --benchmark hpl --size 2000 --duration 300 --partition h100
 ```
 
 For detailed information on available benchmarks, configuration options, and interpreting results, please refer to the [Benchmarks Documentation](docs/benchmarks.md).
@@ -246,6 +249,12 @@ jupyter notebook docs/examples/
 │   │   │   └── osu/           # OSU Micro-benchmarks
 │   │   └── system/            # System benchmarks
 │   │       └── hpl/           # HPL (High Performance Linpack)
+│   │           ├── install_hpl.sh    # HPL installation script
+│   │           ├── build_zen4.sh     # Build script for Zen4
+│   │           ├── build_h100.sh     # Build script for H100
+│   │           ├── source-2.3/       # HPL source code
+│   │           ├── build-zen4/       # Zen4 build directory
+│   │           └── build-h100/       # H100 build directory
 │   ├── power_profiling/        # Power monitoring tools
 │   │   ├── monitors/          # Power monitoring implementations
 │   │   │   ├── base.py       # Base power monitor class
