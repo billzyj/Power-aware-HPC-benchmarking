@@ -635,3 +635,110 @@ with client:
 ```
 
 Dependencies for this path are included in `requirements/base.txt` (`psycopg2-binary`, `paramiko`, `sshtunnel`).
+
+## Keeping the external submodule up to date
+
+The out-of-band integration lives in `external/Repacss-power-profiling` as a git submodule.
+
+- Initial clone with submodules:
+```bash
+git clone <this-repo>
+cd Power-aware-HPC-benchmarking
+git submodule update --init --recursive
+```
+
+- Pull latest changes including submodules:
+```bash
+git pull --recurse-submodules
+```
+
+- Update the submodule to its latest default branch and record the new commit in this repo:
+```bash
+git submodule update --remote --merge external/Repacss-power-profiling
+git add external/Repacss-power-profiling
+git commit -m "Bump Repacss-power-profiling submodule"
+```
+
+- Pin the submodule to a specific tag or commit:
+```bash
+git -C external/Repacss-power-profiling fetch
+# Option A: pin to a tag
+git -C external/Repacss-power-profiling checkout <tag>
+# Option B: pin to a commit SHA
+git -C external/Repacss-power-profiling checkout <sha>
+
+git add external/Repacss-power-profiling
+git commit -m "Pin Repacss-power-profiling to <tag-or-sha>"
+```
+
+- Inspect current submodule status:
+```bash
+git submodule status
+```
+
+## Using the external repo API
+
+There are two supported ways to consume the out-of-band iDRAC data:
+
+### 1) Preferred: use the wrapper provided by this project
+
+The wrapper handles import paths and exposes a small, stable API.
+
+```python
+from power_profiling import IDRACRemoteClient, IDRACQueryParams
+from datetime import datetime, timedelta
+
+client = IDRACRemoteClient(
+    db_host="<db_host>", db_port=5432, database="h100",
+    db_user="<db_user>", db_password="<db_password>",
+    ssh_hostname="<ssh_host>", ssh_port=22, ssh_username="<ssh_user>",
+    ssh_private_key_path="/path/to/id_rsa", schema="idrac",
+)
+
+with client:
+    params = IDRACQueryParams(
+        node_id="node-001",
+        start_time=datetime.utcnow() - timedelta(hours=1),
+        end_time=datetime.utcnow(),
+        limit=100,
+    )
+    rows = client.fetch_computepower(params)
+    print(rows[:3])
+```
+
+Dependencies for this path are already listed in `requirements/base.txt` (`psycopg2-binary`, `paramiko`, `sshtunnel`).
+
+### 2) Advanced: import the external client directly
+
+If you need full access to the external client, you can import it directly. Since it is vendored as a submodule (not installed), add its `src` to `PYTHONPATH` (or `sys.path`) before importing.
+
+```python
+import os, sys
+project_root = os.path.dirname(os.path.abspath(__file__))
+submodule_src = os.path.join(project_root, "external", "Repacss-power-profiling", "src")
+if submodule_src not in sys.path:
+    sys.path.insert(0, submodule_src)
+
+from core.client import REPACSSPowerClient, DatabaseConfig, SSHConfig
+
+client = REPACSSPowerClient(
+    DatabaseConfig(
+        host="<db_host>", port=5432, database="h100",
+        username="<db_user>", password="<db_password>", ssl_mode="prefer", schema="idrac"
+    ),
+    SSHConfig(
+        hostname="<ssh_host>", port=22, username="<ssh_user>",
+        private_key_path="/path/to/id_rsa", passphrase="", keepalive_interval=60
+    ),
+    schema="idrac",
+)
+
+client.connect()
+try:
+    rows = client.get_computepower_metrics(limit=10)
+    print(rows[:3])
+finally:
+    client.disconnect()
+```
+
+Configuration: the external repo can also generate a config file (see its README). If you prefer, you may follow its docs and use its `config` helper; the wrapper path above does not require that and accepts parameters directly.
