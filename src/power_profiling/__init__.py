@@ -8,8 +8,8 @@ from .monitors.cpu import CPUMonitor, IntelMonitor, AMDMonitor
 # GPU monitors
 from .monitors.gpu import GPUMonitor, NvidiaGPUMonitor, AMDGPUMonitor
 
-# System monitors
-from .monitors.system import SystemMonitor, IPMIMonitor, RedfishMonitor, IDRACMonitor
+# System monitors (Redfish/IDRAC in-band removed; use out-of-band wrapper for iDRAC)
+from .monitors.system import SystemMonitor, IPMIMonitor
 from .outofband import IDRACRemoteClient, IDRACQueryParams
 
 __all__ = [
@@ -20,7 +20,7 @@ __all__ = [
     'GPUMonitor', 'NvidiaGPUMonitor', 'AMDGPUMonitor',
     
     # System monitors
-    'SystemMonitor', 'IPMIMonitor', 'RedfishMonitor', 'IDRACMonitor',
+    'SystemMonitor', 'IPMIMonitor',
 
     # Out-of-band
     'IDRACRemoteClient', 'IDRACQueryParams'

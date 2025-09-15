@@ -43,7 +43,7 @@ This project integrates power profiling capabilities with standard HPC benchmark
 - Support for multiple power monitoring backends:
   - CPU (Intel RAPL and AMD K10Temp)
   - GPU (NVIDIA GPUs via NVML, AMD GPUs)
-  - System-level monitoring (IPMI, Redfish, Dell iDRAC)
+  - System-level monitoring (IPMI). Redfish/iDRAC in-band removed; use out-of-band iDRAC wrapper.
 - Real-time power consumption tracking
 - Automated data collection and analysis
 - Interactive Jupyter notebook examples
@@ -152,7 +152,7 @@ For more detailed troubleshooting information, please refer to the [Troubleshoot
 ```python
 from power_profiling.monitors.cpu import IntelMonitor, AMDMonitor
 from power_profiling.monitors.gpu import NvidiaGPUMonitor, AMDGPUMonitor
-from power_profiling.monitors.system import IPMIMonitor, RedfishMonitor, IDRACMonitor
+from power_profiling.monitors.system import IPMIMonitor
 import time
 
 # Initialize monitors based on your hardware
@@ -168,10 +168,7 @@ gpu_monitor = NvidiaGPUMonitor(sampling_interval=0.1)  # For NVIDIA GPUs
 
 # System monitoring
 system_monitor = IPMIMonitor(sampling_interval=1.0)  # For IPMI-capable systems
-# Or
-# system_monitor = RedfishMonitor(sampling_interval=1.0)  # For Redfish-compatible systems
-# Or
-# system_monitor = IDRACMonitor(sampling_interval=1.0)  # For Dell iDRAC systems
+## Redfish/iDRAC in-band monitors were removed. Use IPMI or the out-of-band iDRAC wrapper.
 
 # Start monitoring
 cpu_monitor.start()
@@ -329,8 +326,7 @@ The GPU monitor supports both NVIDIA and AMD GPUs:
 The system monitor supports multiple protocols:
 
 - **IPMIMonitor**: Uses IPMI protocol for system power monitoring
-- **RedfishMonitor**: Uses Redfish API for system power monitoring
-- **IDRACMonitor**: Extends RedfishMonitor specifically for Dell iDRAC systems
+  - Redfish/iDRAC in-band removed; use out-of-band iDRAC via `power_profiling.outofband`.
 - All inherit from the base **SystemMonitor** class
 
 ### Power Reading Data Structure

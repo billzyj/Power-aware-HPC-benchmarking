@@ -12,7 +12,6 @@ psutil>=5.8.0  # CPU monitoring
 pynvml>=11.0.0  # NVIDIA GPU monitoring 
 nvidia-ml-py3>=7.352.0  # NVIDIA GPU monitoring 
 pyipmi>=0.11.0
-python-redfish-client>=1.0.0  # Redfish API client
 psycopg2-binary>=2.9.0  # Out-of-band DB access via submodule
 paramiko==3.3.1  # SSH for submodule
 sshtunnel>=0.4.0  # SSH tunnel for submodule

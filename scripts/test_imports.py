@@ -48,17 +48,7 @@ def test_imports():
     except ImportError as e:
         print(f"✗ Failed to import IPMIMonitor: {e}")
     
-    try:
-        from power_profiling.monitors.system import RedfishMonitor
-        print("✓ Successfully imported RedfishMonitor")
-    except ImportError as e:
-        print(f"✗ Failed to import RedfishMonitor: {e}")
-    
-    try:
-        from power_profiling.monitors.system import IDRACMonitor
-        print("✓ Successfully imported IDRACMonitor")
-    except ImportError as e:
-        print(f"✗ Failed to import IDRACMonitor: {e}")
+    # RedfishMonitor and IDRACMonitor were removed (use out-of-band wrapper for iDRAC)
 
 if __name__ == "__main__":
     test_imports() 

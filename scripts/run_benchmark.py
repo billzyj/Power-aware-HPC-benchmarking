@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent / 'src'))
 from power_profiling.monitors.cpu import IntelMonitor, AMDMonitor
 from power_profiling.monitors.gpu import NvidiaGPUMonitor, AMDGPUMonitor
-from power_profiling.monitors.system import IPMIMonitor, RedfishMonitor, IDRACMonitor
+from power_profiling.monitors.system import IPMIMonitor
 
 class BenchmarkRunner:
     def __init__(self, output_dir):
@@ -39,7 +39,7 @@ class BenchmarkRunner:
             self.gpu_monitor = None
             
         try:
-            self.system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor()
+            self.system_monitor = IPMIMonitor()
         except Exception as e:
             print(f"Warning: Failed to initialize system monitor: {e}")
             self.system_monitor = None

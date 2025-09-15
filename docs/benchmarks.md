@@ -267,7 +267,7 @@ When running HPL with power monitoring, you can analyze:
 You can run multiple benchmarks in sequence to gather comprehensive power-performance data:
 
 ```python
-from power_profiling import IntelMonitor, AMDMonitor, NvidiaGPUMonitor, AMDGPUMonitor, IPMIMonitor, RedfishMonitor, IDRACMonitor
+from power_profiling import IntelMonitor, AMDMonitor, NvidiaGPUMonitor, AMDGPUMonitor, IPMIMonitor
 import time
 import json
 from datetime import datetime
@@ -277,7 +277,7 @@ def run_benchmark_suite(output_dir='data/raw'):
     # Initialize monitors
     cpu_monitor = IntelMonitor()  # or AMDMonitor() depending on your CPU
     gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() depending on your GPU
-    system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor() depending on your system
+    system_monitor = IPMIMonitor()
     
     # Run OSU latency test
     run_osu_benchmark('latency', duration=60, output_dir=output_dir)
@@ -305,7 +305,7 @@ def run_osu_benchmark(test_name, duration=60, output_dir='data/raw', np=2):
     # Initialize monitors
     cpu_monitor = IntelMonitor()  # or AMDMonitor() depending on your CPU
     gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() depending on your GPU
-    system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor() depending on your system
+    system_monitor = IPMIMonitor()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Start monitoring
@@ -396,7 +396,7 @@ HPL.out      output file name (if any)
     # Initialize monitors
     cpu_monitor = IntelMonitor()  # or AMDMonitor() depending on your CPU
     gpu_monitor = NvidiaGPUMonitor()  # or AMDGPUMonitor() depending on your GPU
-    system_monitor = IPMIMonitor()  # or RedfishMonitor() or IDRACMonitor() depending on your system
+    system_monitor = IPMIMonitor()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Start monitoring

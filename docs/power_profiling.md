@@ -11,7 +11,7 @@ The framework is organized into the following components:
 - **Base Classes**: Define the interface and common functionality for all monitors
 - **CPU Monitors**: Implementations for Intel and AMD processors
 - **GPU Monitors**: Implementations for NVIDIA and AMD GPUs
-- **System Monitors**: Implementations for IPMI, Redfish, and iDRAC
+- **System Monitors**: Implementations for IPMI (Redfish/iDRAC in-band removed; use out-of-band wrapper)
 - **Data Collection**: Utilities for collecting and storing power data
 - **Analysis Tools**: Scripts for analyzing and visualizing power data
 
@@ -147,51 +147,7 @@ readings = ipmi_monitor.get_readings()
 ipmi_monitor.stop()
 ```
 
-#### Redfish Monitor
-
-```python
-from power_monitoring.system.redfish import RedfishMonitor
-
-# Configure Redfish monitor
-redfish_monitor = RedfishMonitor(
-    host="192.168.1.100",
-    username="admin",
-    password="password",
-    sampling_interval=1.0  # seconds
-)
-
-# Start monitoring
-redfish_monitor.start()
-
-# Get readings
-readings = redfish_monitor.get_readings()
-
-# Stop monitoring
-redfish_monitor.stop()
-```
-
-#### iDRAC Monitor
-
-```python
-from power_monitoring.system.idrac import IDRACMonitor
-
-# Configure iDRAC monitor
-idrac_monitor = IDRACMonitor(
-    host="192.168.1.100",
-    username="admin",
-    password="password",
-    sampling_interval=1.0  # seconds
-)
-
-# Start monitoring
-idrac_monitor.start()
-
-# Get readings
-readings = idrac_monitor.get_readings()
-
-# Stop monitoring
-idrac_monitor.stop()
-```
+Redfish/iDRAC in-band monitors are not supported. For iDRAC, use the out-of-band integration via `power_profiling.outofband.IDRACRemoteClient`.
 
 ## Data Collection
 
