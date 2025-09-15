@@ -605,3 +605,33 @@ cat results/metadata/system_info.json
    - Check system load
    - Monitor thermal throttling
    - Verify network connectivity
+
+### Out-of-band iDRAC (REPACSS) Integration
+
+This project integrates an out-of-band path via a git submodule at `external/Repacss-power-profiling` and a thin wrapper in `src/power_profiling/outofband`.
+
+Example usage:
+
+```python
+from power_profiling import IDRACRemoteClient, IDRACQueryParams
+from datetime import datetime, timedelta
+
+client = IDRACRemoteClient(
+    db_host="<db_host>", db_port=5432, database="h100",
+    db_user="<db_user>", db_password="<db_password>",
+    ssh_hostname="<ssh_host>", ssh_port=22, ssh_username="<ssh_user>",
+    ssh_private_key_path="/path/to/id_rsa", schema="idrac",
+)
+
+with client:
+    params = IDRACQueryParams(
+        node_id="node-001",
+        start_time=datetime.utcnow() - timedelta(hours=1),
+        end_time=datetime.utcnow(),
+        limit=100,
+    )
+    rows = client.fetch_computepower(params)
+    print(rows[:3])
+```
+
+Dependencies for this path are included in `requirements/base.txt` (`psycopg2-binary`, `paramiko`, `sshtunnel`).
