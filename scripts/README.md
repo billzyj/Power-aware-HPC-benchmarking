@@ -7,6 +7,7 @@ This directory contains utility scripts for running benchmarks, analyzing result
 - **run_benchmark.py**: Run HPC benchmarks (OSU, HPL) with integrated power monitoring. Saves both benchmark and power data.
 - **analyze_results.py**: Analyze and visualize benchmark and power monitoring results. Generates plots and summary files.
 - **test_imports.py**: Test that power monitoring modules can be imported correctly from the `src` directory.
+- **run_idrac_outofband_demo.py**: Demo for querying out-of-band iDRAC power data via the REPACSS submodule wrapper.
 
 ## Usage
 
